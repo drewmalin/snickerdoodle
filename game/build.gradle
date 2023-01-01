@@ -1,0 +1,42 @@
+plugins {
+    id 'application'
+    id 'java-library'
+}
+
+ext {
+    slf4jVersion = '2.17.2'
+}
+
+project.ext.mainClassName = "com.drewmalin.snickerdoodle.game.Game"
+project.ext.name = "Snickerdoodle"
+project.ext.version = "2023.01.01"
+
+dependencies {
+    implementation project(":engine")
+
+    implementation "org.apache.logging.log4j:log4j-api:$slf4jVersion"
+    implementation "org.apache.logging.log4j:log4j-core:$slf4jVersion"
+    implementation "org.apache.logging.log4j:log4j-slf4j-impl:$slf4jVersion"
+}
+
+application {
+    getMainClass().set(project.mainClassName)
+    applicationDefaultJvmArgs = ['-XstartOnFirstThread']
+}
+
+/*
+ * Create a single fat jar to serve as the sole entrypoint for the application.
+ */
+tasks.register('fatJar', Jar) {
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+
+    manifest {
+        attributes 'Main-Class': project.mainClassName
+    }
+
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+}

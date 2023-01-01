@@ -1,0 +1,5 @@
+rootProject.name = 'snickerdoodle'
+
+include('engine')
+include('game')
+include('package')

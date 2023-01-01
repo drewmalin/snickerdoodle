@@ -1,0 +1,98 @@
+import org.gradle.internal.os.OperatingSystem
+
+evaluationDependsOn(':game')
+
+
+tasks.register('recreateMacIcons', Exec) {
+    var String os = 'mac'
+
+    commandLine = [
+            'sh',
+            file("bin/${os}/build-icon.sh"),
+            file('icons/icon.png'),
+            file("icons/${os}"),
+            'icon'
+    ]
+}
+
+tasks.register('recreateWinIcons', Exec) {
+    var String os = 'win'
+
+    commandLine = [
+            'sh',
+            file("bin/${os}/build-icon.sh"),
+            file('icons/icon.png'),
+            file("icons/${os}"),
+            'icon'
+    ]
+}
+
+tasks.register('create', Exec) {
+    dependsOn(project(':game').fatJar)
+
+    var Project app = project(':game')
+
+    var appMainLib = file("${app.buildDir}/libs")
+    var appMainJar = app.fatJar.outputs.files[0].name
+    var appMainClass = app.project.ext.mainClassName
+
+    var String packageType
+    var Object[] script
+    var String appIcon
+    var File packageOutputPath
+    var String[] additionalArguments = []
+
+    var operatingSystem = OperatingSystem.current()
+    if (operatingSystem.isWindows()) {
+
+        packageType = 'exe'
+        script = ['cmd', '/c', file('bin/win/build-package.bat')]
+        appIcon = file('icons/win/icon.ico')
+        packageOutputPath = file("${buildDir}/win")
+
+    } else if (operatingSystem.isMacOsX()) {
+
+        packageType = 'dmg'
+        script = ['sh', file('bin/mac/build-package.sh')]
+        appIcon = file('icons/mac/icon.icns')
+        packageOutputPath = file("${buildDir}/mac")
+        additionalArguments = [
+                /*
+                 * Mac installers (.dmg file) can be signed if the proper setup exists on the
+                 * context system (namely: signing certificates).
+                 */
+//                "--mac-sign",
+                "--java-options", "\"-XstartOnFirstThread\""
+        ]
+
+    } else {
+
+        packageType = 'deb'
+        script = ['sh', file('bin/nix/build-package.sh')]
+        appIcon = file('icons/icon.png')
+        packageOutputPath = file("${buildDir}/nix")
+
+    }
+
+    /*
+     * These arguments match, one-to-one, to the arguments in the appropriate 'build-package' script,
+     * selected above via the context operating system.
+     */
+    var ArrayList<Object> scriptArguments = [
+            packageType,
+            appMainLib,
+            appMainJar,
+            appMainClass,
+            app.project.ext.name,
+            app.project.ext.version,
+            appIcon,
+            packageOutputPath,
+            *additionalArguments
+    ]
+
+    commandLine = [*script, *scriptArguments]
+}
+
+tasks.register("clean") {
+    delete(file(buildDir))
+}
