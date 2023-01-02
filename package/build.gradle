@@ -61,7 +61,7 @@ tasks.register('create', Exec) {
                  * Mac installers (.dmg file) can be signed if the proper setup exists on the
                  * context system (namely: signing certificates).
                  */
-//                "--mac-sign",
+                "--mac-sign",
                 "--java-options", "\"-XstartOnFirstThread\""
         ]
 
