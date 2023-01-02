@@ -9,7 +9,7 @@ ext {
 
 project.ext.mainClassName = "com.drewmalin.snickerdoodle.game.Game"
 project.ext.name = "Snickerdoodle"
-project.ext.version = "2023.01.01"
+project.ext.version = "1.0.0"
 
 dependencies {
     implementation project(":engine")
