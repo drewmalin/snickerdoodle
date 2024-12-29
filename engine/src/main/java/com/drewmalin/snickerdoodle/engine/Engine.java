@@ -1,31 +1,18 @@
 package com.drewmalin.snickerdoodle.engine;
 
-import com.drewmalin.snickerdoodle.engine.camera.Camera;
-import com.drewmalin.snickerdoodle.engine.timer.Timer;
 import com.drewmalin.snickerdoodle.engine.window.Window;
 
 public interface Engine {
 
     /**
-     * Returns this {@link Engine}'s {@link Camera}.
-     *
-     * @return this {@link Engine}'s {@link Camera}
+     * Sets the active {@link Window}.
      */
-    Camera getCamera();
+    void setWindow(Window window);
 
     /**
      * Returns this {@link Engine}'s {@link Window}.
-     *
-     * @return this {@link Engine}'s {@link Window}
      */
     Window getWindow();
-
-    /**
-     * Returns this {@link Engine}'s {@link Timer}.
-     *
-     * @return this {@link Engine}'s {@link Timer}
-     */
-    Timer getTimer();
 
     /**
      * Run the main loop.
@@ -33,11 +20,31 @@ public interface Engine {
     void run();
 
     /**
+     * Returns the number of frames rendered per second by the engine. This can be used as an "FPS" measure suitable
+     * for display to users.
+     */
+    double getFramesPerSecond();
+
+    /**
+     * Returns the number of update ticks per second by the engine. Depending on how the engine has been configured,
+     * this value may differ from the above FPS count.
+     */
+    double getUpdatesPerSecond();
+
+    /**
+     * Sets the {@link State} of this engine.
+     */
+    void setState(State state);
+
+    /**
+     * Returns the {@link State} of this engine.
+     */
+    State getState();
+
+    /**
      * Close this {@link Engine}.
      */
     void close();
-
-    void setState(State state);
 
     /**
      * Engine state.

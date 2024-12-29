@@ -4,11 +4,8 @@ import com.drewmalin.snickerdoodle.engine.ecs.component.Component;
 
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 public interface EntityManager {
-
-    Entity newEntity();
 
     Entity newEntity(String name);
 

@@ -6,5 +6,5 @@ import com.drewmalin.snickerdoodle.engine.ecs.entity.EntityManager;
 
 public interface Script extends Component {
 
-    void invoke(Entity entity, EntityManager entityManager);
+    void invoke(Entity entity, EntityManager entityManager, double dt);
 }

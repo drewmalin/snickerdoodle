@@ -162,9 +162,9 @@ public class Shader {
         setUniformValue("positionalLight.color", light.color());
         setUniformValue("positionalLight.position", light.getPosition());
         setUniformValue("positionalLight.intensity", light.getIntensity());
-        setUniformValue("positionalLight.att.constant", light.getAttenuation().getConstant());
-        setUniformValue("positionalLight.att.linear", light.getAttenuation().getLinear());
-        setUniformValue("positionalLight.att.exponent", light.getAttenuation().getExponent());
+        setUniformValue("positionalLight.att.constant", light.getAttenuation().constant());
+        setUniformValue("positionalLight.att.linear", light.getAttenuation().linear());
+        setUniformValue("positionalLight.att.exponent", light.getAttenuation().exponent());
     }
 
     public void prepareFrustumTransformation() {

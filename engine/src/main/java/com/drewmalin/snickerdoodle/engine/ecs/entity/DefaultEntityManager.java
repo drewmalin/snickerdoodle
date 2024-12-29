@@ -17,17 +17,12 @@ public class DefaultEntityManager implements EntityManager {
     }
 
     @Override
-    public Entity newEntity() {
+    public Entity newEntity(final String name) {
         synchronized (this.entityLock) {
-            final Entity entity = new Entity(UUID.randomUUID());
+            final Entity entity = new Entity(UUID.randomUUID(), name);
             this.entities.add(entity);
             return entity;
         }
-    }
-
-    @Override
-    public Entity newEntity(String name) {
-        return null;
     }
 
     @Override

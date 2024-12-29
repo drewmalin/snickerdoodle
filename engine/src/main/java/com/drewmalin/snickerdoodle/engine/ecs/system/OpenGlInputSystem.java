@@ -1,20 +1,23 @@
 package com.drewmalin.snickerdoodle.engine.ecs.system;
 
+import com.drewmalin.snickerdoodle.engine.window.InputUpdateHandler;
 import com.drewmalin.snickerdoodle.engine.window.Window;
 import org.joml.Vector2d;
 import org.joml.Vector2f;
 
-public class DefaultInputSystem implements InputSystem {
+public class OpenGlInputSystem
+    implements InputSystem {
 
     private final Vector2d mousePosition;
+    private final InputUpdateHandler handler;
 
-    public DefaultInputSystem() {
+    public OpenGlInputSystem(final InputUpdateHandler handler) {
         this.mousePosition = new Vector2d();
+        this.handler = handler;
     }
 
-
     @Override
-    public void update(final Window window, final Callback callback) {
+    public void update(final Window window, final double dt) {
         final var mouseCursorPositionDelta = new Vector2f();
 
         final var currentPosition = window.getMousePosition();
@@ -31,9 +34,8 @@ public class DefaultInputSystem implements InputSystem {
         this.mousePosition.x = currentPosition.x;
         this.mousePosition.y = currentPosition.y;
 
-        callback.invoke(window, mouseCursorPositionDelta);
+        this.handler.invoke(window, mouseCursorPositionDelta, dt);
     }
-
 
     @Override
     public void destroy() {

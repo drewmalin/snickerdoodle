@@ -1,6 +1,6 @@
 package com.drewmalin.snickerdoodle.engine.ecs.system;
 
-import com.drewmalin.snickerdoodle.engine.camera.Camera;
+import com.drewmalin.snickerdoodle.engine.Engine;
 import com.drewmalin.snickerdoodle.engine.scene.Scene;
 import com.drewmalin.snickerdoodle.engine.window.Window;
 
@@ -15,5 +15,5 @@ import com.drewmalin.snickerdoodle.engine.window.Window;
  */
 public interface RenderSystem extends System {
 
-    void update(Scene scene, Window window, Camera camera);
+    void update(Engine engine, Window window, Scene scene);
 }

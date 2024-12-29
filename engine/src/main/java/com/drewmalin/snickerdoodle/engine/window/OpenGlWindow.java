@@ -1,9 +1,21 @@
 package com.drewmalin.snickerdoodle.engine.window;
 
+import com.drewmalin.snickerdoodle.engine.Engine;
+import com.drewmalin.snickerdoodle.engine.camera.Camera;
+import com.drewmalin.snickerdoodle.engine.ecs.system.InputSystem;
+import com.drewmalin.snickerdoodle.engine.ecs.system.NoopInputSystem;
+import com.drewmalin.snickerdoodle.engine.ecs.system.NoopRenderSystem;
+import com.drewmalin.snickerdoodle.engine.ecs.system.RenderSystem;
+import com.drewmalin.snickerdoodle.engine.scene.Scene;
 import org.joml.Vector2d;
-import org.lwjgl.glfw.*;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWCursorPosCallback;
+import org.lwjgl.glfw.GLFWFramebufferSizeCallback;
+import org.lwjgl.glfw.GLFWMouseButtonCallback;
+import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.system.Callback;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
@@ -11,40 +23,63 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.IntBuffer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
-public class OpenGlWindow implements Window {
+public class OpenGlWindow
+    implements Window {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenGlWindow.class);
+    private static final int DEFAULT_WIDTH = 800;
+    private static final int DEFAULT_HEIGHT = 600;
+    private static final String DEFAULT_TITLE = "OpenGL";
+    private static final InputSystem DEFAULT_INPUT_SYSTEM = NoopInputSystem.INSTANCE;
+    private static final RenderSystem DEFAULT_RENDER_SYSTEM = NoopRenderSystem.INSTANCE;
 
     private final long windowHandle;
     private final String title;
     private final Vector2d mousePosition;
     private final boolean vSync;
     private final Map<Integer, Integer> mouseButtonStatus;
+    private final Set<Callback> callbacks;
+    private final InputSystem inputSystem;
+    private final RenderSystem renderSystem;
 
-    private final GLFWKeyCallback closeWindowHotkeyCallback;
-    private final GLFWFramebufferSizeCallback resizeWindowCallback;
-    private final GLFWCursorPosCallback mousePositionCallback;
-    private final GLFWMouseButtonCallback mouseButtonCallback;
-
+    private Camera camera;
     private int width;
     private int height;
     private boolean shouldResize;
 
-    public OpenGlWindow(final int width, final int height, final String title, final boolean vSync) {
-        this.width = width;
-        this.height = height;
-        this.title = title;
-        this.vSync = vSync;
+    private OpenGlWindow(final Builder builder) {
+        this.vSync = builder.vSync;
+        this.inputSystem = builder.inputSystem == null ? DEFAULT_INPUT_SYSTEM : builder.inputSystem;
+        this.renderSystem = builder.renderSystem == null ? DEFAULT_RENDER_SYSTEM : builder.renderSystem;
+        this.camera = builder.camera;
+
+        this.width = builder.width == 0 ? DEFAULT_WIDTH : builder.width;
+        this.height = builder.height == 0 ? DEFAULT_HEIGHT : builder.height;
+        this.title = builder.title == null ? DEFAULT_TITLE : builder.title;
+
         this.mouseButtonStatus = new HashMap<>();
         this.mousePosition = new Vector2d();
 
         this.windowHandle = initializeGLFWWindow();
-        this.closeWindowHotkeyCallback = setWindowCloseHotkey(this.windowHandle, GLFW.GLFW_KEY_ESCAPE);
-        this.resizeWindowCallback = setResizeCallback(this.windowHandle);
-        this.mousePositionCallback = setMousePositionCallback(this.windowHandle);
-        this.mouseButtonCallback = setMouseButtonCallback(this.windowHandle);
+        this.callbacks = new HashSet<>();
+
+
+        /*
+         * Set up Input system
+         */
+        final var keyUpCallbacks = new HashMap<Integer, Runnable>();
+        // Special case callback (can be removed later): close the window on "ESC"
+        keyUpCallbacks.put(GLFW.GLFW_KEY_ESCAPE, () -> GLFW.glfwSetWindowShouldClose(this.windowHandle, true));
+        keyUpCallbacks.putAll(builder.keyUpCallbacks);
+        this.callbacks.add(setKeyUpCallbacks(this.windowHandle, keyUpCallbacks));
+
+        this.callbacks.add(setResizeCallback(this.windowHandle));
+        this.callbacks.add(setMousePositionCallback(this.windowHandle));
+        this.callbacks.add(setMouseButtonCallback(this.windowHandle));
     }
 
     private long initializeGLFWWindow() {
@@ -69,6 +104,8 @@ public class OpenGlWindow implements Window {
             LOGGER.error("Failed to create the GLFW window");
             throw new RuntimeException("Failed to create the GLFW window");
         }
+        GLFW.glfwMakeContextCurrent(window);
+
         setWindowPositionToCenter(window);
         setWindowVerticalSync(window);
         setWindowAsVisible(window);
@@ -77,16 +114,22 @@ public class OpenGlWindow implements Window {
         return window;
     }
 
-
-    private GLFWKeyCallback setWindowCloseHotkey(final long window, final long key) {
+    private Callback setKeyUpCallbacks(final long window, final Map<Integer, Runnable> keyUpCallbacks) {
         return GLFW.glfwSetKeyCallback(window, (windowHandle, keyHandle, scancode, action, mods) -> {
-            // event detected on escape key
-            if (keyHandle == key) {
-                // event is of type "release" (key-up)
-                if (action == GLFW.GLFW_RELEASE) {
-                    GLFW.glfwSetWindowShouldClose(windowHandle, true);
+            /*
+             * For each callback...
+             */
+            keyUpCallbacks.forEach((keyCode, callback) -> {
+                /*
+                 * If the mapped key is detected as being released (key-up)...
+                 */
+                if (keyHandle == keyCode && action == GLFW.GLFW_RELEASE) {
+                    /*
+                     * Run the callback!
+                     */
+                    callback.run();
                 }
-            }
+            });
         });
     }
 
@@ -135,7 +178,6 @@ public class OpenGlWindow implements Window {
     }
 
     private void setWindowAsVisible(final long window) {
-        GLFW.glfwMakeContextCurrent(window);
         GLFW.glfwShowWindow(window);
     }
 
@@ -146,8 +188,8 @@ public class OpenGlWindow implements Window {
     }
 
     @Override
-    public boolean isClosed() {
-        return GLFW.glfwWindowShouldClose(this.windowHandle);
+    public Camera getCamera() {
+        return this.camera;
     }
 
     @Override
@@ -169,47 +211,32 @@ public class OpenGlWindow implements Window {
     }
 
     @Override
-    public void update(final Runnable onUpdate) {
-        preUpdate();
-        onUpdate.run();
-        postUpdate();
-    }
-
-    private void preUpdate() {
+    public void update(final Engine engine, final Scene scene, final double dt) {
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+
         if (this.shouldResize) {
             LOGGER.debug("resizing window to {} x {}", this.width, this.height);
             GL11.glViewport(0, 0, this.width, this.height);
             this.shouldResize = false;
         }
-    }
 
-    private void postUpdate() {
+        this.renderSystem.update(engine, this, scene);
+        this.inputSystem.update(this, dt);
+
         GLFW.glfwSwapBuffers(this.windowHandle);
         GLFW.glfwPollEvents();
     }
 
     @Override
     public void destroy() {
-        if (this.closeWindowHotkeyCallback != null) {
-            this.closeWindowHotkeyCallback.close();
-        }
-        if (this.resizeWindowCallback != null) {
-            this.resizeWindowCallback.close();
-        }
-        if (this.mousePositionCallback != null) {
-            this.mousePositionCallback.close();
-        }
-        if (this.mouseButtonCallback != null) {
-            this.mouseButtonCallback.close();
+        for (final Callback callback : this.callbacks) {
+            if (callback == null) {
+                continue;
+            }
+            callback.close();
         }
         GLFW.glfwDestroyWindow(this.windowHandle);
         LOGGER.debug("OpenGL window destroyed");
-    }
-
-    @Override
-    public boolean isVerticalSyncEnabled() {
-        return this.vSync;
     }
 
     @Override
@@ -220,5 +247,74 @@ public class OpenGlWindow implements Window {
     @Override
     public int getHeight() {
         return this.height;
+    }
+
+    @Override
+    public boolean isClosed() {
+        return GLFW.glfwWindowShouldClose(this.windowHandle);
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+
+        private final Map<Integer, Runnable> keyUpCallbacks;
+        private int width;
+        private int height;
+        private String title;
+        private boolean vSync;
+        private InputSystem inputSystem;
+        private Camera camera;
+        private RenderSystem renderSystem;
+
+        private Builder() {
+            this.keyUpCallbacks = new HashMap<>();
+        }
+
+        public Builder width(final int width) {
+            this.width = width;
+            return this;
+        }
+
+        public Builder height(final int height) {
+            this.height = height;
+            return this;
+        }
+
+        public Builder title(final String title) {
+            this.title = title;
+            return this;
+        }
+
+        public Builder vSync(final boolean vSync) {
+            this.vSync = vSync;
+            return this;
+        }
+
+        public Builder inputSystem(final InputSystem inputSystem) {
+            this.inputSystem = inputSystem;
+            return this;
+        }
+
+        public Builder camera(final Camera camera) {
+            this.camera = camera;
+            return this;
+        }
+
+        public Builder keyUpEventHandler(final int keyCode, final Runnable runnable) {
+            this.keyUpCallbacks.put(keyCode, runnable);
+            return this;
+        }
+
+        public Builder renderSystem(final RenderSystem renderSystem) {
+            this.renderSystem = renderSystem;
+            return this;
+        }
+
+        public OpenGlWindow build() {
+            return new OpenGlWindow(this);
+        }
     }
 }

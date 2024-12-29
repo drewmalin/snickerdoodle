@@ -1,5 +1,6 @@
 package com.drewmalin.snickerdoodle.engine.ecs.system;
 
+import com.drewmalin.snickerdoodle.engine.Engine;
 import com.drewmalin.snickerdoodle.engine.camera.Camera;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Color;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Material;
@@ -28,9 +29,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-public class DefaultRenderSystem implements RenderSystem {
+public class OpenGlRenderSystem
+    implements RenderSystem {
 
-    private static final Logger LOGGER = LogManager.getLogger(DefaultRenderSystem.class);
+    private static final Logger LOGGER = LogManager.getLogger(OpenGlRenderSystem.class);
 
     private static final float FOV = (float) Math.toRadians(60.0f);
     private static final float Z_NEAR = 0.01f;
@@ -39,27 +41,25 @@ public class DefaultRenderSystem implements RenderSystem {
     private final Map<Entity, RenderMetadata> entityRenderMetadata;
     private final Transformation transformation;
 
-    public DefaultRenderSystem() {
+    public OpenGlRenderSystem() {
         this.entityRenderMetadata = new HashMap<>();
         this.transformation = new Transformation();
     }
 
     @Override
-    public void update(final Scene scene,
-                       final Window window,
-                       final Camera camera) {
+    public void update(final Engine engine, final Window window, final Scene scene) {
         final var entityManager = scene.getEntityManager();
         final var lightManager = scene.getLightManager();
 
         final var frustumTransformation = this.transformation.getFrustumTransformation(FOV, window.getWidth(), window.getHeight(), Z_NEAR, Z_FAR);
-        final var cameraTransformation = this.transformation.getCameraTransformation(camera);
+        final var cameraTransformation = this.transformation.getCameraTransformation(window.getCamera());
 
         final Set<Entity> entitiesWithMesh = entityManager.getEntitiesWithComponent(Mesh.class);
         for (final var entity : entitiesWithMesh) {
 
             // lazily compute the entity's render metadata
             final RenderMetadata metadata = this.entityRenderMetadata.computeIfAbsent(entity, k ->
-                    generateEntityRenderMetadata(entity, entityManager)
+                generateEntityRenderMetadata(entity, entityManager)
             );
 
             // ready the shader for use
@@ -126,14 +126,14 @@ public class DefaultRenderSystem implements RenderSystem {
 
         // if a material is not found, use a default
         final var material = entityManager.getComponent(entity, Material.class).orElse(
-                new Color(
-                        new Vector4f(0.4f, 0.4f, 0.4f, 1.0f)
-                )
+            new Color(
+                new Vector4f(0.4f, 0.4f, 0.4f, 1.0f)
+            )
         );
 
         // if a transform is not found, use a default
         final var transform = entityManager.getComponent(entity, Transform.class).orElse(
-                new Transform()
+            new Transform()
         );
 
         // initialize VBO data
@@ -194,7 +194,8 @@ public class DefaultRenderSystem implements RenderSystem {
             // unbind VBO and VAO
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
             GL30.glBindVertexArray(0);
-        } finally {
+        }
+        finally {
             if (vboBuffer != null) {
                 MemoryUtil.memFree(vboBuffer);
             }
@@ -220,6 +221,7 @@ public class DefaultRenderSystem implements RenderSystem {
     }
 
     private static class Transformation {
+
         private final Matrix4f frustumTransformation;
         private final Matrix4f positionTransformation;
         private final Matrix4f cameraTransformation;
@@ -230,7 +232,11 @@ public class DefaultRenderSystem implements RenderSystem {
             this.cameraTransformation = new Matrix4f();
         }
 
-        public Matrix4f getFrustumTransformation(final float fov, final float width, final float height, final float zNear, float zFar) {
+        public Matrix4f getFrustumTransformation(final float fov,
+                                                 final float width,
+                                                 final float height,
+                                                 final float zNear,
+                                                 float zFar) {
             float aspectRatio = width / height;
             this.frustumTransformation.identity();
             this.frustumTransformation.perspective(fov, aspectRatio, zNear, zFar);
@@ -241,31 +247,32 @@ public class DefaultRenderSystem implements RenderSystem {
             final Vector3f cameraPosition = camera.getPosition();
             final Vector3f cameraTarget = camera.getTarget();
             this.cameraTransformation.identity()
-                    .lookAt(cameraPosition, cameraPosition.add(cameraTarget, new Vector3f()), Vectors.up())
-                    .translate(-cameraPosition.x(), -cameraPosition.y(), -cameraPosition.z());
+                .lookAt(cameraPosition, cameraPosition.add(cameraTarget, new Vector3f()), Vectors.up())
+                .translate(-cameraPosition.x(), -cameraPosition.y(), -cameraPosition.z());
             return this.cameraTransformation;
         }
 
         public Matrix4f getEntityTransformation(final Transform transform, final Matrix4f cameraTransformation) {
             this.positionTransformation.identity().translate(transform.getPosition())
-                    .rotateX((float) Math.toRadians(transform.getRotation().x()))
-                    .rotateY((float) Math.toRadians(transform.getRotation().y()))
-                    .rotateZ((float) Math.toRadians(transform.getRotation().z()))
-                    .scale(transform.getScale());
+                .rotateX((float) Math.toRadians(transform.getRotation().x()))
+                .rotateY((float) Math.toRadians(transform.getRotation().y()))
+                .rotateZ((float) Math.toRadians(transform.getRotation().z()))
+                .scale(transform.getScale());
             final Matrix4f cameraCurrent = new Matrix4f(cameraTransformation);
             return cameraCurrent.mul(this.positionTransformation);
         }
     }
 
     private record RenderMetadata(
-            int vaoID,
-            int vertexVboID,
-            int colorVboID,
-            int normalVboID,
-            int indexVboID,
-            Mesh mesh,
-            Material material,
-            Shader shader,
-            Transform transform) {
+        int vaoID,
+        int vertexVboID,
+        int colorVboID,
+        int normalVboID,
+        int indexVboID,
+        Mesh mesh,
+        Material material,
+        Shader shader,
+        Transform transform) {
+
     }
 }
