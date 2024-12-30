@@ -1,5 +1,6 @@
-package com.drewmalin.snickerdoodle.engine.ecs.system;
+package com.drewmalin.snickerdoodle.engine.opengl;
 
+import com.drewmalin.snickerdoodle.engine.ecs.system.InputSystem;
 import com.drewmalin.snickerdoodle.engine.window.InputUpdateHandler;
 import com.drewmalin.snickerdoodle.engine.window.Window;
 import org.joml.Vector2d;

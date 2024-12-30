@@ -1,6 +1,7 @@
-package com.drewmalin.snickerdoodle.engine.light;
+package com.drewmalin.snickerdoodle.engine.opengl;
 
 import com.drewmalin.snickerdoodle.engine.ecs.component.Material;
+import com.drewmalin.snickerdoodle.engine.light.PositionalLight;
 import com.drewmalin.snickerdoodle.engine.utils.Files;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,9 +20,11 @@ import java.util.function.Consumer;
  * "bound" into context, at which time various parameters may be set (these parameters link to those defined in the
  * original shader source code).
  */
-public class ShaderProgram {
 
-    private static final Logger LOGGER = LogManager.getLogger(ShaderProgram.class);
+// TODO: introduce interface
+public class OpenGlShaderProgram {
+
+    private static final Logger LOGGER = LogManager.getLogger(OpenGlShaderProgram.class);
 
     private static final String UNIFORM_FRUSTUM_TRANSFORMATION = "frustumTransformation";
     private static final String UNIFORM_ENTITY_TRANSFORMATION = "entityTransformation";
@@ -44,7 +47,7 @@ public class ShaderProgram {
 
     private int programID;
 
-    private ShaderProgram(final String vertexShaderSourceFile, final String fragmentShaderSourceFile) {
+    private OpenGlShaderProgram(final String vertexShaderSourceFile, final String fragmentShaderSourceFile) {
         this.vertexShaderID = compile(vertexShaderSourceFile, GL20.GL_VERTEX_SHADER);
         this.fragmentShaderID = compile(fragmentShaderSourceFile, GL20.GL_FRAGMENT_SHADER);
         this.uniforms = new HashMap<>();
@@ -166,7 +169,7 @@ public class ShaderProgram {
     /**
      * Runs the provided {@link Consumer} within the context of this shader program.
      */
-    public void runInShader(final Consumer<ShaderProgram> consumer) {
+    public void runInShader(final Consumer<OpenGlShaderProgram> consumer) {
         bind();
         consumer.accept(this);
         unbind();
@@ -259,9 +262,9 @@ public class ShaderProgram {
     }
 
     /**
-     * The name of this enum and the enclosing class ({@link ShaderProgram}) are slightly off, but intentional. This
+     * The name of this enum and the enclosing class ({@link OpenGlShaderProgram}) are slightly off, but intentional. This
      * enum is intended to fundamentally trigger the compilation of all shaders exactly once (by virtue of this enum
-     * being evaluated at class-load time, with each value invoking the {@link ShaderProgram} constructor).
+     * being evaluated at class-load time, with each value invoking the {@link OpenGlShaderProgram} constructor).
      */
     private enum Shader {
         TEXTURE(
@@ -272,22 +275,22 @@ public class ShaderProgram {
             "/shaders/rgba_fragment.fs"),
         ;
 
-        private final ShaderProgram shaderProgram;
+        private final OpenGlShaderProgram shaderProgram;
 
         Shader(final String vertexFilePath, final String fragmentFilePath) {
             final var vertexShaderSource = Files.loadResource(vertexFilePath);
             final var fragmentShaderSource = Files.loadResource(fragmentFilePath);
 
             LOGGER.info("Compiling shader from source: [vertexFilePath=\"{}\", fragmentFilePath=\"{}\"]", vertexFilePath, fragmentFilePath);
-            this.shaderProgram = new ShaderProgram(vertexShaderSource, fragmentShaderSource);
+            this.shaderProgram = new OpenGlShaderProgram(vertexShaderSource, fragmentShaderSource);
         }
     }
 
-    public static ShaderProgram defaultRgba() {
+    public static OpenGlShaderProgram defaultRgba() {
         return Shader.RGBA.shaderProgram;
     }
 
-    public static ShaderProgram defaultTexture() {
+    public static OpenGlShaderProgram defaultTexture() {
         return Shader.TEXTURE.shaderProgram;
     }
 }

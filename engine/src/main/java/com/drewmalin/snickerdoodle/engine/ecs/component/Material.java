@@ -1,6 +1,6 @@
 package com.drewmalin.snickerdoodle.engine.ecs.component;
 
-import com.drewmalin.snickerdoodle.engine.light.ShaderProgram;
+import com.drewmalin.snickerdoodle.engine.opengl.OpenGlShaderProgram;
 import org.joml.Vector4f;
 
 public abstract class Material implements Component {
@@ -9,13 +9,13 @@ public abstract class Material implements Component {
     private final Vector4f diffuse;
     private final Vector4f specular;
     private final float reflectance;
-    private final ShaderProgram shaderProgram;
+    private final OpenGlShaderProgram shaderProgram;
 
     public Material(final Vector4f ambient,
                     final Vector4f diffuse,
                     final Vector4f specular,
                     final float reflectance,
-                    final ShaderProgram shaderProgram) {
+                    final OpenGlShaderProgram shaderProgram) {
         this.ambient = ambient;
         this.diffuse = diffuse;
         this.specular = specular;
@@ -39,7 +39,7 @@ public abstract class Material implements Component {
         return this.reflectance;
     }
 
-    public ShaderProgram getShaderProgram() {
+    public OpenGlShaderProgram getShaderProgram() {
         return this.shaderProgram;
     }
 

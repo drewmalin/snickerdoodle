@@ -1,4 +1,4 @@
-package com.drewmalin.snickerdoodle.engine.window;
+package com.drewmalin.snickerdoodle.engine.opengl;
 
 import com.drewmalin.snickerdoodle.engine.Engine;
 import com.drewmalin.snickerdoodle.engine.camera.Camera;
@@ -7,6 +7,7 @@ import com.drewmalin.snickerdoodle.engine.ecs.system.NoopInputSystem;
 import com.drewmalin.snickerdoodle.engine.ecs.system.NoopRenderSystem;
 import com.drewmalin.snickerdoodle.engine.ecs.system.RenderSystem;
 import com.drewmalin.snickerdoodle.engine.scene.Scene;
+import com.drewmalin.snickerdoodle.engine.window.Window;
 import org.joml.Vector2d;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWCursorPosCallback;

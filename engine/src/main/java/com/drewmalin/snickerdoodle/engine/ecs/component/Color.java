@@ -1,12 +1,12 @@
 package com.drewmalin.snickerdoodle.engine.ecs.component;
 
-import com.drewmalin.snickerdoodle.engine.light.ShaderProgram;
+import com.drewmalin.snickerdoodle.engine.opengl.OpenGlShaderProgram;
 import com.drewmalin.snickerdoodle.engine.utils.Vectors;
 import org.joml.Vector4f;
 
 public class Color extends Material {
 
-    public Color(final Vector4f rgba, final ShaderProgram shaderProgram) {
+    public Color(final Vector4f rgba, final OpenGlShaderProgram shaderProgram) {
         super(
                 rgba,
                 rgba,
@@ -17,7 +17,7 @@ public class Color extends Material {
     }
 
     public Color(final Vector4f rgba) {
-        this(rgba, ShaderProgram.defaultRgba());
+        this(rgba, OpenGlShaderProgram.defaultRgba());
     }
 
     public static Builder builder() {
@@ -51,7 +51,7 @@ public class Color extends Material {
         private float g;
         private float b;
         private float a;
-        private ShaderProgram shaderProgram;
+        private OpenGlShaderProgram shaderProgram;
 
         public Builder red(final float r) {
             this.r = r;
@@ -74,7 +74,7 @@ public class Color extends Material {
             return this;
         }
 
-        public Builder shader(final ShaderProgram shaderProgram) {
+        public Builder shader(final OpenGlShaderProgram shaderProgram) {
             this.shaderProgram = shaderProgram;
             return this;
         }

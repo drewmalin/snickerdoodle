@@ -1,5 +1,6 @@
-package com.drewmalin.snickerdoodle.engine.timer;
+package com.drewmalin.snickerdoodle.engine.opengl;
 
+import com.drewmalin.snickerdoodle.engine.timer.Timer;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;

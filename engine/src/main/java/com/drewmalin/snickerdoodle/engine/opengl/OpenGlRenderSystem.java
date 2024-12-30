@@ -1,4 +1,4 @@
-package com.drewmalin.snickerdoodle.engine.ecs.system;
+package com.drewmalin.snickerdoodle.engine.opengl;
 
 import com.drewmalin.snickerdoodle.engine.Engine;
 import com.drewmalin.snickerdoodle.engine.camera.Camera;
@@ -8,7 +8,7 @@ import com.drewmalin.snickerdoodle.engine.ecs.component.Mesh;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Transform;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.Entity;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.EntityManager;
-import com.drewmalin.snickerdoodle.engine.light.ShaderProgram;
+import com.drewmalin.snickerdoodle.engine.ecs.system.RenderSystem;
 import com.drewmalin.snickerdoodle.engine.scene.Scene;
 import com.drewmalin.snickerdoodle.engine.utils.Vectors;
 import com.drewmalin.snickerdoodle.engine.window.Window;
@@ -258,7 +258,7 @@ public class OpenGlRenderSystem
         int indexVboID,
         Mesh mesh,
         Material material,
-        ShaderProgram shaderProgram,
+        OpenGlShaderProgram shaderProgram,
         Transform transform) {
 
         void destroy() {
