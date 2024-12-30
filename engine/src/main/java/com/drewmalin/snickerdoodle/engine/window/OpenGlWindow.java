@@ -258,6 +258,16 @@ public class OpenGlWindow
         return new Builder();
     }
 
+    @Override
+    public String toString() {
+        return "OpenGlWindow["
+            + "title='" + this.title + "', "
+            + "width=" + this.width + ", "
+            + "height=" + this.height + ", "
+            + "shouldResize=" + this.shouldResize
+            + ']';
+    }
+
     public static class Builder {
 
         private final Map<Integer, Runnable> keyUpCallbacks;

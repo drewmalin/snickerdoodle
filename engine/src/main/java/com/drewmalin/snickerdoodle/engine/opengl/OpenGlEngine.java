@@ -1,11 +1,8 @@
 package com.drewmalin.snickerdoodle.engine.opengl;
 
 import com.drewmalin.snickerdoodle.engine.Engine;
-import com.drewmalin.snickerdoodle.engine.camera.Camera;
-import com.drewmalin.snickerdoodle.engine.ecs.system.RenderSystem;
 import com.drewmalin.snickerdoodle.engine.ecs.system.ScriptSystem;
 import com.drewmalin.snickerdoodle.engine.scene.Scene;
-import com.drewmalin.snickerdoodle.engine.timer.Timer;
 import com.drewmalin.snickerdoodle.engine.window.Window;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,10 +13,11 @@ public class OpenGlEngine
     implements Engine {
 
     private static final Logger LOGGER = LogManager.getLogger(OpenGlEngine.class);
+    private static final int DEFAULT_MAX_UPDATES_PER_SECOND = 60;
+    private static final int DEFAULT_MAX_FRAMES_PER_SECOND = 60;
+    private static final int DEFAULT_MAX_UPDATES_PER_FRAME = 500;
 
-    private final RenderSystem renderSystem;
     private final ScriptSystem scriptSystem;
-
     private final int maxUpdatesPerSecond;
     private final int maxUpdatesPerFrame;
     private final int maxFramesPerSecond;
@@ -35,32 +33,30 @@ public class OpenGlEngine
     private Window window;
 
     public OpenGlEngine(final Builder builder) {
-        this.state = State.RUNNING;
 
-        this.renderSystem = builder.renderSystem;
+        this.maxUpdatesPerSecond = builder.maxUpdatesPerSecond == 0
+            ? DEFAULT_MAX_UPDATES_PER_SECOND
+            : builder.maxUpdatesPerSecond;
+        this.maxUpdatesPerFrame = builder.maxUpdatesPerFrame == 0
+            ? DEFAULT_MAX_UPDATES_PER_FRAME
+            : builder.maxUpdatesPerFrame;
+        this.maxFramesPerSecond = builder.maxFramesPerSecond == 0
+            ? DEFAULT_MAX_FRAMES_PER_SECOND
+            : builder.maxFramesPerSecond;
         this.scriptSystem = builder.scriptSystem;
-
-        this.maxUpdatesPerSecond = builder.maxUpdatesPerSecond;
-        this.maxUpdatesPerFrame = builder.maxUpdatesPerFrame;
-        this.maxFramesPerSecond = builder.maxFramesPerSecond;
 
         this.glfwStderrCallback = GLFW.glfwSetErrorCallback(
             GLFWErrorCallback.createPrint(java.lang.System.err)
         );
-    }
+        this.state = State.RUNNING;
 
-    @Override
-    public void setWindow(final Window window) {
-        this.window = window;
-    }
-
-    @Override
-    public Window getWindow() {
-        return this.window;
+        LOGGER.info("New OpenGL Engine created: {}", this);
     }
 
     @Override
     public void run() {
+        LOGGER.info("Starting main engine loop");
+
         try {
 
             if (this.scene == null) {
@@ -168,16 +164,20 @@ public class OpenGlEngine
     }
 
     @Override
-    public void close() {
-        if (this.glfwStderrCallback != null) {
-            this.glfwStderrCallback.close();
-        }
-        GLFW.glfwTerminate();
+    public void setWindow(final Window window) {
+        this.window = window;
+        LOGGER.info("Active window set to: {}", this.window);
+    }
+
+    @Override
+    public Window getWindow() {
+        return this.window;
     }
 
     @Override
     public void setState(final State state) {
         this.state = state;
+        LOGGER.info("State set to: {}", this.state);
     }
 
     @Override
@@ -185,29 +185,42 @@ public class OpenGlEngine
         return this.state;
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
-
     public void setScene(final Scene scene) {
         if (scene == null) {
             throw new IllegalArgumentException("Scene cannot be null");
         }
         this.scene = scene;
+        LOGGER.info("Active scene set to: {}", this.scene);
+    }
+
+    @Override
+    public String toString() {
+        return "OpenGlEngine["
+            + "state=" + this.state + ", "
+            + "maxUpdatesPerSecond=" + this.maxUpdatesPerSecond + ", "
+            + "maxUpdatesPerFrame=" + this.maxUpdatesPerFrame + ", "
+            + "maxFramesPerSecond=" + this.maxFramesPerSecond
+            + ']';
+    }
+
+    @Override
+    public void close() {
+        if (this.glfwStderrCallback != null) {
+            this.glfwStderrCallback.close();
+        }
+        GLFW.glfwTerminate();
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     public static class Builder {
 
-        private static final int DEFAULT_MAX_UPDATES_PER_SECOND = 60;
-        private static final int DEFAULT_MAX_FRAMES_PER_SECOND = 60;
-        private static final int DEFAULT_MAX_UPDATES_PER_FRAME = 500;
-
-        private RenderSystem renderSystem;
         private ScriptSystem scriptSystem;
-
-        private int maxUpdatesPerSecond = DEFAULT_MAX_UPDATES_PER_SECOND;
-        private int maxUpdatesPerFrame = DEFAULT_MAX_UPDATES_PER_FRAME;
-        private int maxFramesPerSecond = DEFAULT_MAX_FRAMES_PER_SECOND;
+        private int maxUpdatesPerSecond;
+        private int maxUpdatesPerFrame;
+        private int maxFramesPerSecond;
 
         private Builder() {
 

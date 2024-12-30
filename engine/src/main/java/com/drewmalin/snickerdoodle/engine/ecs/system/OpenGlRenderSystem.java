@@ -189,7 +189,8 @@ public class OpenGlRenderSystem
             GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, idxBuffer, GL15.GL_STATIC_DRAW);
 
             // initialize shader data
-            material.getShader().link();
+            LOGGER.debug("[Entity: {}] Compiling shaders for {}", entity.name(), material);
+            material.getShader().compileAndLink();
 
             // unbind VBO and VAO
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
@@ -210,13 +211,6 @@ public class OpenGlRenderSystem
             }
         }
 
-        // todo: could this be done in an "init"? builder?
-        material.getShader().prepareFrustumTransformation();
-        material.getShader().prepareEntityTransformation();
-        material.getShader().prepareMaterialTransformation();
-        material.getShader().prepareSpecularPowerTransformation();
-        material.getShader().prepareAmbientLightTransformation();
-        material.getShader().preparePositionalLightTransformation();
         return new RenderMetadata(vaoID, vertexVboID, colorVboID, normalVboID, indexVboID, mesh, material, material.getShader(), transform);
     }
 
@@ -263,6 +257,9 @@ public class OpenGlRenderSystem
         }
     }
 
+    /**
+     * A simple record to hold onto cacheable render data for a given entity.
+     */
     private record RenderMetadata(
         int vaoID,
         int vertexVboID,

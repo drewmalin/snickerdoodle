@@ -9,20 +9,22 @@ import java.io.File;
 
 public class Scene {
 
+    private final String name;
     private final EntityManager entityManager;
     private final LightManager lightManager;
 
-    public Scene() {
-        this(new DefaultEntityManager(), new DefaultLightManager());
+    public Scene(final String name) {
+        this(name, new DefaultEntityManager(), new DefaultLightManager());
     }
 
-    public Scene(final EntityManager entityManager, final LightManager lightManager) {
+    public Scene(final String name, final EntityManager entityManager, final LightManager lightManager) {
+        this.name = name;
         this.entityManager = entityManager;
         this.lightManager = lightManager;
     }
 
     public static Scene fromFile(final File file) {
-        return new Scene();
+        return new Scene("Default");
     }
 
     public EntityManager getEntityManager() {
@@ -31,5 +33,12 @@ public class Scene {
 
     public LightManager getLightManager() {
         return this.lightManager;
+    }
+
+    @Override
+    public String toString() {
+        return "Scene["
+            + "name='" + this.name + "'"
+            + ']';
     }
 }

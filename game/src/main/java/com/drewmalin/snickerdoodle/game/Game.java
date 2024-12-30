@@ -32,8 +32,6 @@ public class Game {
     private static final Logger LOGGER = LogManager.getLogger(Game.class);
 
     public static void main(final String[] args) {
-        LOGGER.info("Instantiating Engine");
-
         final var engine = EngineFactory.openGlEngineBuilder()
             .scriptSystem(new DefaultScriptSystem())
             .maxFramesPerSecond(60)
@@ -45,8 +43,6 @@ public class Game {
 
         engine.setWindow(window);
         engine.setScene(scene);
-
-        LOGGER.info("Starting Engine");
         engine.run();
     }
 
@@ -91,7 +87,7 @@ public class Game {
                 }
             })
             .keyUpEventHandler(GLFW.GLFW_KEY_I, () -> {
-                LOGGER.info("state: {}, FPS: {}, UPS: {}",
+                LOGGER.debug("state: {}, FPS: {}, UPS: {}",
                     engine.getState(), engine.getFramesPerSecond(), engine.getUpdatesPerSecond());
             })
             .build();
@@ -177,6 +173,6 @@ public class Game {
             .build()
         );
 
-        return new Scene(entityManager, lightManager);
+        return new Scene("Hello, world!", entityManager, lightManager);
     }
 }

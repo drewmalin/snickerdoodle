@@ -1,6 +1,7 @@
 package com.drewmalin.snickerdoodle.engine.ecs.component;
 
 import com.drewmalin.snickerdoodle.engine.light.Shader;
+import com.drewmalin.snickerdoodle.engine.utils.Vectors;
 import org.joml.Vector4f;
 
 public class Color extends Material {
@@ -35,6 +36,14 @@ public class Color extends Material {
             colors[colorIdx++] = getAmbient().w();
         }
         return colors;
+    }
+
+    @Override
+    public String toString() {
+        return "Color["
+            + "rgba=" + Vectors.toString(getAmbient()) + ", "
+            + "shader=" + getShader()
+            + "]";
     }
 
     public static class Builder {
