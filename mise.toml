@@ -9,6 +9,10 @@ run = "./gradlew build"
 description = "Run the demo application"
 run = "./gradlew game:run"
 
+[tasks.package]
+description = "Create distributables"
+run = "./gradlew package:create"
+
 [tasks.clean]
 description = "Clean the project"
 run = "./gradlew clean"
