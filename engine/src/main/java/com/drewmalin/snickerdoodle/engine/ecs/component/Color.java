@@ -1,23 +1,23 @@
 package com.drewmalin.snickerdoodle.engine.ecs.component;
 
-import com.drewmalin.snickerdoodle.engine.light.Shader;
+import com.drewmalin.snickerdoodle.engine.light.ShaderProgram;
 import com.drewmalin.snickerdoodle.engine.utils.Vectors;
 import org.joml.Vector4f;
 
 public class Color extends Material {
 
-    public Color(final Vector4f rgba, final Shader shader) {
+    public Color(final Vector4f rgba, final ShaderProgram shaderProgram) {
         super(
                 rgba,
                 rgba,
                 rgba,
                 0,
-                shader
+            shaderProgram
         );
     }
 
     public Color(final Vector4f rgba) {
-        this(rgba, Shader.defaultRgba());
+        this(rgba, ShaderProgram.defaultRgba());
     }
 
     public static Builder builder() {
@@ -42,7 +42,7 @@ public class Color extends Material {
     public String toString() {
         return "Color["
             + "rgba=" + Vectors.toString(getAmbient()) + ", "
-            + "shader=" + getShader()
+            + "shader=" + getShaderProgram()
             + "]";
     }
 
@@ -51,7 +51,7 @@ public class Color extends Material {
         private float g;
         private float b;
         private float a;
-        private Shader shader;
+        private ShaderProgram shaderProgram;
 
         public Builder red(final float r) {
             this.r = r;
@@ -74,8 +74,8 @@ public class Color extends Material {
             return this;
         }
 
-        public Builder shader(final Shader shader) {
-            this.shader = shader;
+        public Builder shader(final ShaderProgram shaderProgram) {
+            this.shaderProgram = shaderProgram;
             return this;
         }
 

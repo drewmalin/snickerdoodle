@@ -12,10 +12,16 @@ import org.lwjgl.system.MemoryStack;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
-public class Shader {
+/**
+ * A representation of a compiled and linked program corresponding to a vertex and fragment shader. This program may be
+ * "bound" into context, at which time various parameters may be set (these parameters link to those defined in the
+ * original shader source code).
+ */
+public class ShaderProgram {
 
-    private static final Logger LOGGER = LogManager.getLogger(Shader.class);
+    private static final Logger LOGGER = LogManager.getLogger(ShaderProgram.class);
 
     private static final String UNIFORM_FRUSTUM_TRANSFORMATION = "frustumTransformation";
     private static final String UNIFORM_ENTITY_TRANSFORMATION = "entityTransformation";
@@ -32,31 +38,51 @@ public class Shader {
     private static final String POSITIONAL_LIGHT_ATT_LINEAR = "positionalLight.att.linear";
     private static final String POSITIONAL_LIGHT_ATT_EXPONENT = "positionalLight.att.exponent";
 
-    private int programID;
-    private final String vertexShaderSourceFile;
-    private final String fragmentShaderSourceFile;
+    private final int vertexShaderID;
+    private final int fragmentShaderID;
     private final Map<String, Integer> uniforms;
 
-    public Shader(final String vertexShaderSourceFile, final String fragmentShaderSourceFile) {
-        this.vertexShaderSourceFile = vertexShaderSourceFile;
-        this.fragmentShaderSourceFile = fragmentShaderSourceFile;
+    private int programID;
+
+    private ShaderProgram(final String vertexShaderSourceFile, final String fragmentShaderSourceFile) {
+        this.vertexShaderID = compile(vertexShaderSourceFile, GL20.GL_VERTEX_SHADER);
+        this.fragmentShaderID = compile(fragmentShaderSourceFile, GL20.GL_FRAGMENT_SHADER);
         this.uniforms = new HashMap<>();
+    }
+
+    private int compile(final String shaderProgramPath, int shaderType) {
+        /*
+         * Create a new shader of the specified shader type. A failure to create this program results in a hard error.
+         */
+        int shaderId = GL20.glCreateShader(shaderType);
+        if (shaderId == 0) {
+            throw new RuntimeException("Error creating shader. Type: " + shaderType);
+        }
+
+        /*
+         * Specify the source code for the shader and compile it.
+         */
+        GL20.glShaderSource(shaderId, shaderProgramPath);
+        GL20.glCompileShader(shaderId);
+
+        /*
+         * Get the results of code compilation. If the status is 0, then an error occurred.
+         */
+        if (GL20.glGetShaderi(shaderId, GL20.GL_COMPILE_STATUS) == 0) {
+            throw new RuntimeException("Error compiling Shader code: " + GL20.glGetShaderInfoLog(shaderId, 1024));
+        }
+
+        return shaderId;
     }
 
     /**
      * Prepare this shader for use by OpenGL.
      */
-    public void compileAndLink() {
+    public void link() {
         /*
          * Create a new program object.
          */
         this.programID = GL20.glCreateProgram();
-
-        /*
-         * Create new shaders, ready for attachment to this program.
-         */
-        final int vertexShaderID = newShader(this.vertexShaderSourceFile, GL20.GL_VERTEX_SHADER);
-        final int fragmentShaderID = newShader(this.fragmentShaderSourceFile, GL20.GL_FRAGMENT_SHADER);
 
         /*
          * Link the shader to the parent program.
@@ -105,31 +131,6 @@ public class Shader {
         preparePositionalLightTransformation();
     }
 
-    private int newShader(final String shaderProgramPath, int shaderType) {
-        /*
-         * Create a new shader of the specified shader type. A failure to create this program results in a hard error.
-         */
-        int shaderId = GL20.glCreateShader(shaderType);
-        if (shaderId == 0) {
-            throw new RuntimeException("Error creating shader. Type: " + shaderType);
-        }
-
-        /*
-         * Specify the source code for the shader and compile it.
-         */
-        GL20.glShaderSource(shaderId, shaderProgramPath);
-        GL20.glCompileShader(shaderId);
-
-        /*
-         * Get the results of code compilation. If the status is 0, then an error occurred.
-         */
-        if (GL20.glGetShaderi(shaderId, GL20.GL_COMPILE_STATUS) == 0) {
-            throw new RuntimeException("Error compiling Shader code: " + GL20.glGetShaderInfoLog(shaderId, 1024));
-        }
-
-        return shaderId;
-    }
-
     private void prepareFrustumTransformation() {
         prepareUniform(UNIFORM_FRUSTUM_TRANSFORMATION);
     }
@@ -160,6 +161,15 @@ public class Shader {
         prepareUniform(POSITIONAL_LIGHT_ATT_CONSTANT);
         prepareUniform(POSITIONAL_LIGHT_ATT_LINEAR);
         prepareUniform(POSITIONAL_LIGHT_ATT_EXPONENT);
+    }
+
+    /**
+     * Runs the provided {@link Consumer} within the context of this shader program.
+     */
+    public void runInShader(final Consumer<ShaderProgram> consumer) {
+        bind();
+        consumer.accept(this);
+        unbind();
     }
 
     public void setFrustumTransformation(final Matrix4f value) {
@@ -226,11 +236,11 @@ public class Shader {
         GL20.glUniform4f(this.uniforms.get(uniformName), value.x, value.y, value.z, value.w);
     }
 
-    public void bind() {
+    private void bind() {
         GL20.glUseProgram(this.programID);
     }
 
-    public void unbind() {
+    private void unbind() {
         GL20.glUseProgram(0);
     }
 
@@ -248,7 +258,12 @@ public class Shader {
             + ']';
     }
 
-    private enum ShaderSource {
+    /**
+     * The name of this enum and the enclosing class ({@link ShaderProgram}) are slightly off, but intentional. This
+     * enum is intended to fundamentally trigger the compilation of all shaders exactly once (by virtue of this enum
+     * being evaluated at class-load time, with each value invoking the {@link ShaderProgram} constructor).
+     */
+    private enum Shader {
         TEXTURE(
             "/shaders/texture_vertex.vs",
             "/shaders/texture_fragment.fs"),
@@ -257,21 +272,22 @@ public class Shader {
             "/shaders/rgba_fragment.fs"),
         ;
 
-        private final Shader shader;
+        private final ShaderProgram shaderProgram;
 
-        ShaderSource(final String vertexFilePath, final String fragmentFilePath) {
+        Shader(final String vertexFilePath, final String fragmentFilePath) {
             final var vertexShaderSource = Files.loadResource(vertexFilePath);
             final var fragmentShaderSource = Files.loadResource(fragmentFilePath);
 
-            this.shader = new Shader(vertexShaderSource, fragmentShaderSource);
+            LOGGER.info("Compiling shader from source: [vertexFilePath=\"{}\", fragmentFilePath=\"{}\"]", vertexFilePath, fragmentFilePath);
+            this.shaderProgram = new ShaderProgram(vertexShaderSource, fragmentShaderSource);
         }
     }
 
-    public static Shader defaultRgba() {
-        return ShaderSource.RGBA.shader;
+    public static ShaderProgram defaultRgba() {
+        return Shader.RGBA.shaderProgram;
     }
 
-    public static Shader defaultTexture() {
-        return ShaderSource.TEXTURE.shader;
+    public static ShaderProgram defaultTexture() {
+        return Shader.TEXTURE.shaderProgram;
     }
 }

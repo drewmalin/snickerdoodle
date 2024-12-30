@@ -8,12 +8,12 @@
 //     In this step, the Vertex Buffers are processed such that each vertex's projected position is calculated. This
 //     phase can also take into account color or texture, but its main goal is to calculate vertices.
 //  3. Geometry Processing
-//     In this step, the vertices are taken from the vertex shader and are connected into triangles (though more
+//     In this step, the vertices are taken from the vertex shaderProgram and are connected into triangles (though more
 //     custom transformations can be made).
 //  4. Rasterization
-//     In this step, the triangles from the geometry shader are taken and are transformed into pixel-sized fragments.
+//     In this step, the triangles from the geometry shaderProgram are taken and are transformed into pixel-sized fragments.
 //  5. Fragment Processing
-//     In this step, the fragments from the rasterization step are passed to the fragment shader to be assigned color
+//     In this step, the fragments from the rasterization step are passed to the fragment shaderProgram to be assigned color
 //     data, preparing each pixel for writing to the final frame buffer.
 //
 // All of the above is highly parallelizable.

@@ -8,7 +8,7 @@ import com.drewmalin.snickerdoodle.engine.ecs.component.Mesh;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Transform;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.Entity;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.EntityManager;
-import com.drewmalin.snickerdoodle.engine.light.Shader;
+import com.drewmalin.snickerdoodle.engine.light.ShaderProgram;
 import com.drewmalin.snickerdoodle.engine.scene.Scene;
 import com.drewmalin.snickerdoodle.engine.utils.Vectors;
 import com.drewmalin.snickerdoodle.engine.window.Window;
@@ -62,37 +62,33 @@ public class OpenGlRenderSystem
                 generateEntityRenderMetadata(entity, entityManager)
             );
 
-            // ready the shader for use
-            metadata.shader.bind();
+            metadata.shaderProgram.runInShader((shader) -> {
+                // calculate the projection and world matrices relative to this entity, passing them to the shader
+                final var entityTransformation = this.transformation.getEntityTransformation(metadata.transform, cameraTransformation);
 
-            // calculate the projection and world matrices relative to this entity, passing them to the shader
-            final var entityTransformation = this.transformation.getEntityTransformation(metadata.transform, cameraTransformation);
+                shader.setFrustumTransformation(frustumTransformation);
+                shader.setEntityTransformation(entityTransformation);
+                shader.setMaterialTransformation(metadata.material());
+                shader.setSpecularPowerTransformation(lightManager.getSpecularPower());
+                shader.setAmbientLightTransformation(lightManager.getAmbientLight());
 
-            metadata.shader.setFrustumTransformation(frustumTransformation);
-            metadata.shader.setEntityTransformation(entityTransformation);
-            metadata.shader.setMaterialTransformation(metadata.material());
-            metadata.shader.setSpecularPowerTransformation(lightManager.getSpecularPower());
-            metadata.shader.setAmbientLightTransformation(lightManager.getAmbientLight());
+                for (final var light : lightManager.getPositionalLights()) {
+                    final var lightCopy = light.copy();
+                    final var lightPos = lightCopy.getPosition();
+                    final var aux = new Vector4f(lightPos, 1f);
 
-            for (final var light : lightManager.getPositionalLights()) {
-                final var lightCopy = light.copy();
-                final var lightPos = lightCopy.getPosition();
-                final var aux = new Vector4f(lightPos, 1f);
+                    aux.mul(cameraTransformation);
+                    lightPos.x = aux.x;
+                    lightPos.y = aux.y;
+                    lightPos.z = aux.z;
+                    shader.setPositionalLightTransformation(lightCopy);
+                }
 
-                aux.mul(cameraTransformation);
-                lightPos.x = aux.x;
-                lightPos.y = aux.y;
-                lightPos.z = aux.z;
-                metadata.shader.setPositionalLightTransformation(lightCopy);
-            }
-
-            // render the entity's vertices
-            GL30.glBindVertexArray(metadata.vaoID);
-            GL11.glDrawElements(GL11.GL_TRIANGLES, metadata.mesh.getVertexRenderOrder().length, GL11.GL_UNSIGNED_INT, 0);
-            GL30.glBindVertexArray(0);
-
-            // free
-            metadata.shader.unbind();
+                // render the entity's vertices
+                GL30.glBindVertexArray(metadata.vaoID);
+                GL11.glDrawElements(GL11.GL_TRIANGLES, metadata.mesh.getVertexRenderOrder().length, GL11.GL_UNSIGNED_INT, 0);
+                GL30.glBindVertexArray(0);
+            });
         }
     }
 
@@ -102,12 +98,7 @@ public class OpenGlRenderSystem
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
         GL30.glBindVertexArray(0);
         for (final var metadata : this.entityRenderMetadata.values()) {
-            GL15.glDeleteBuffers(metadata.vertexVboID);
-            GL15.glDeleteBuffers(metadata.colorVboID);
-            GL15.glDeleteBuffers(metadata.indexVboID);
-            GL15.glDeleteBuffers(metadata.normalVboID);
-            GL30.glDeleteVertexArrays(metadata.vaoID);
-            metadata.shader.destroy();
+            metadata.destroy();
         }
         this.entityRenderMetadata.clear();
     }
@@ -188,9 +179,8 @@ public class OpenGlRenderSystem
             GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, indexVboID);
             GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, idxBuffer, GL15.GL_STATIC_DRAW);
 
-            // initialize shader data
-            LOGGER.debug("[Entity: {}] Compiling shaders for {}", entity.name(), material);
-            material.getShader().compileAndLink();
+            // link shader program into this VBO
+            material.getShaderProgram().link();
 
             // unbind VBO and VAO
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
@@ -211,7 +201,7 @@ public class OpenGlRenderSystem
             }
         }
 
-        return new RenderMetadata(vaoID, vertexVboID, colorVboID, normalVboID, indexVboID, mesh, material, material.getShader(), transform);
+        return new RenderMetadata(vaoID, vertexVboID, colorVboID, normalVboID, indexVboID, mesh, material, material.getShaderProgram(), transform);
     }
 
     private static class Transformation {
@@ -268,8 +258,16 @@ public class OpenGlRenderSystem
         int indexVboID,
         Mesh mesh,
         Material material,
-        Shader shader,
+        ShaderProgram shaderProgram,
         Transform transform) {
 
+        void destroy() {
+            GL15.glDeleteBuffers(this.vertexVboID);
+            GL15.glDeleteBuffers(this.colorVboID);
+            GL15.glDeleteBuffers(this.indexVboID);
+            GL15.glDeleteBuffers(this.normalVboID);
+            GL30.glDeleteVertexArrays(this.vaoID);
+            this.shaderProgram.destroy();
+        }
     }
 }
