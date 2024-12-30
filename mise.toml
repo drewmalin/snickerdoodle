@@ -1,2 +1,14 @@
 [tools]
-java = "openjdk-21"
+java = "openjdk-17"
+
+[tasks.build]
+description = "Build the project"
+run = "./gradlew build"
+
+[tasks.demo]
+description = "Run the demo application"
+run = "./gradlew game:run"
+
+[tasks.clean]
+description = "Clean the project"
+run = "./gradlew clean"
