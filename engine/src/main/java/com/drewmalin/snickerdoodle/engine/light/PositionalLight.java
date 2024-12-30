@@ -6,6 +6,8 @@ public interface PositionalLight extends Light {
 
     Vector3f getPosition();
 
+    void setPosition(Vector3f position);
+
     float getIntensity();
 
     Attenuation getAttenuation();

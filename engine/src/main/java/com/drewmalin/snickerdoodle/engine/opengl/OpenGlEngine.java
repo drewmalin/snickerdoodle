@@ -185,12 +185,18 @@ public class OpenGlEngine
         return this.state;
     }
 
+    @Override
     public void setScene(final Scene scene) {
         if (scene == null) {
             throw new IllegalArgumentException("Scene cannot be null");
         }
         this.scene = scene;
         LOGGER.info("Active scene set to: {}", this.scene);
+    }
+
+    @Override
+    public Scene getScene() {
+        return this.scene;
     }
 
     @Override

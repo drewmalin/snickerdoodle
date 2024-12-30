@@ -56,10 +56,11 @@ public class Game {
             .vSync(true)
             .camera(camera)
             .renderSystem(new OpenGlRenderSystem())
-            .inputSystem(new OpenGlInputSystem((w, mouseCursorDelta, dt) -> {
-                if (engine.getState() == RUNNING) {
-                    float distance = (float) (60f * dt);
+            .inputSystem(new OpenGlInputSystem((e, w, mouseCursorDelta, dt) -> {
+                if (e.getState() == RUNNING) {
+                    final var distance = (float) (60f * dt);
 
+                    // WASD
                     if (w.isKeyPressed(GLFW.GLFW_KEY_W)) {
                         camera.panForward(distance);
                     }
@@ -72,11 +73,52 @@ public class Game {
                     else if (w.isKeyPressed(GLFW.GLFW_KEY_D)) {
                         camera.panRight(distance);
                     }
+
+                    // Raise / Lower
                     if (w.isKeyPressed(GLFW.GLFW_KEY_Z)) {
                         camera.panUp(distance);
                     }
                     else if (w.isKeyPressed(GLFW.GLFW_KEY_X)) {
                         camera.panDown(distance);
+                    }
+
+                    // Use arrow keys to move lights
+                    final var lightDistance = distance * .05f;
+                    var lightForward = 0f;
+                    var lightleft = 0f;
+                    var lightUp = 0f;
+
+                    if (w.isKeyPressed(GLFW.GLFW_KEY_RIGHT_SHIFT)) {
+                        if (w.isKeyPressed(GLFW.GLFW_KEY_UP)) {
+                            lightUp = lightDistance;
+                        }
+                        else if (w.isKeyPressed(GLFW.GLFW_KEY_DOWN)) {
+                            lightUp = -lightDistance;
+                        }
+                    }
+                    else {
+                        if (w.isKeyPressed(GLFW.GLFW_KEY_UP)) {
+                            lightForward = -lightDistance;
+                        }
+                        else if (w.isKeyPressed(GLFW.GLFW_KEY_DOWN)) {
+                            lightForward = lightDistance;
+                        }
+                    }
+                    if (w.isKeyPressed(GLFW.GLFW_KEY_LEFT)) {
+                        lightleft = -lightDistance;
+                    }
+                    else if (w.isKeyPressed(GLFW.GLFW_KEY_RIGHT)) {
+                        lightleft = lightDistance;
+                    }
+
+                    for (var light : e.getScene().getLightManager().getPositionalLights()) {
+                        final var position = light.getPosition();
+                        light.setPosition(
+                            new Vector3f(
+                                position.x + lightleft,
+                                position.y + lightUp,
+                                position.z + lightForward)
+                        );
                     }
                 }
             }))

@@ -222,7 +222,7 @@ public class OpenGlWindow
         }
 
         this.renderSystem.update(engine, this, scene);
-        this.inputSystem.update(this, dt);
+        this.inputSystem.update(engine, this, dt);
 
         GLFW.glfwSwapBuffers(this.windowHandle);
         GLFW.glfwPollEvents();

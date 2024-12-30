@@ -1,5 +1,6 @@
 package com.drewmalin.snickerdoodle.engine.ecs.system;
 
+import com.drewmalin.snickerdoodle.engine.Engine;
 import com.drewmalin.snickerdoodle.engine.window.Window;
 
 public class NoopInputSystem
@@ -8,7 +9,7 @@ public class NoopInputSystem
     public static final InputSystem INSTANCE = new NoopInputSystem();
 
     @Override
-    public void update(final Window window, final double dt) {
+    public void update(final Engine engine, final Window window, final double dt) {
         // no-op
     }
 

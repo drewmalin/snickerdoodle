@@ -1,5 +1,6 @@
 package com.drewmalin.snickerdoodle.engine;
 
+import com.drewmalin.snickerdoodle.engine.scene.Scene;
 import com.drewmalin.snickerdoodle.engine.window.Window;
 
 public interface Engine {
@@ -40,6 +41,16 @@ public interface Engine {
      * Returns the {@link State} of this engine.
      */
     State getState();
+
+    /**
+     * Sets the active {@link Scene} of this engine.
+     */
+    void setScene(Scene scene);
+
+    /**
+     * Returns the active {@link Scene} of this engine.
+     */
+    Scene getScene();
 
     /**
      * Close this {@link Engine}.

@@ -1,5 +1,6 @@
 package com.drewmalin.snickerdoodle.engine.opengl;
 
+import com.drewmalin.snickerdoodle.engine.Engine;
 import com.drewmalin.snickerdoodle.engine.ecs.system.InputSystem;
 import com.drewmalin.snickerdoodle.engine.window.InputUpdateHandler;
 import com.drewmalin.snickerdoodle.engine.window.Window;
@@ -18,7 +19,7 @@ public class OpenGlInputSystem
     }
 
     @Override
-    public void update(final Window window, final double dt) {
+    public void update(final Engine engine, final Window window, final double dt) {
         final var mouseCursorPositionDelta = new Vector2f();
 
         final var currentPosition = window.getMousePosition();
@@ -35,7 +36,7 @@ public class OpenGlInputSystem
         this.mousePosition.x = currentPosition.x;
         this.mousePosition.y = currentPosition.y;
 
-        this.handler.invoke(window, mouseCursorPositionDelta, dt);
+        this.handler.invoke(engine, window, mouseCursorPositionDelta, dt);
     }
 
     @Override

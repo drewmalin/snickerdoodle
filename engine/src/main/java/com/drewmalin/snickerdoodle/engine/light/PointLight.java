@@ -31,6 +31,11 @@ public class PointLight implements PositionalLight {
     }
 
     @Override
+    public void setPosition(final Vector3f position) {
+        this.position.set(position);
+    }
+
+    @Override
     public float getIntensity() {
         return this.intensity;
     }
