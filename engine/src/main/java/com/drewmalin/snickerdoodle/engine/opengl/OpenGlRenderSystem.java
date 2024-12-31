@@ -27,7 +27,6 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 public class OpenGlRenderSystem
     implements RenderSystem {
@@ -38,12 +37,12 @@ public class OpenGlRenderSystem
     private static final float Z_NEAR = 0.01f;
     private static final float Z_FAR = 1000f;
 
+    private final Frustum frustum;
     private final Map<Entity, RenderMetadata> entityRenderMetadata;
-    private final Transformation transformation;
 
     public OpenGlRenderSystem() {
+        this.frustum = new Frustum();
         this.entityRenderMetadata = new HashMap<>();
-        this.transformation = new Transformation();
     }
 
     @Override
@@ -51,27 +50,48 @@ public class OpenGlRenderSystem
         final var entityManager = scene.getEntityManager();
         final var lightManager = scene.getLightManager();
 
-        final var frustumTransformation = this.transformation.getFrustumTransformation(FOV, window.getWidth(), window.getHeight(), Z_NEAR, Z_FAR);
-        final var cameraTransformation = this.transformation.getCameraTransformation(window.getCamera());
+        final var frustumTransformation = this.frustum.toMatrix(FOV, window.getWidth(), window.getHeight(), Z_NEAR, Z_FAR);
+        final var cameraTransformation = getCameraTransformation(window.getCamera());
 
-        final Set<Entity> entitiesWithMesh = entityManager.getEntitiesWithComponent(Mesh.class);
-        for (final var entity : entitiesWithMesh) {
+        for (final var entity : entityManager.getEntitiesWithComponent(Mesh.class)) {
 
-            // lazily compute the entity's render metadata
-            final RenderMetadata metadata = this.entityRenderMetadata.computeIfAbsent(entity, k ->
+            /*
+             * Fetch (or generate) the render metadata for this entity. Render metadata essentially a bag of pointers
+             * to objects like the entity's Mesh, Transform, and Shader, but it also includes the one-time setup of
+             * OpenGL vertex buffer object (VBO) which contains the inputs to graphics pipeline that will be used
+             * downstream by the shader. In this model, the original fixed vertex positions, normals, colors, and
+             * indices are created once per entity and cached in the entityRenderMetadata map. When it comes time to
+             * render a particular entity, that entity's new position and color information is passed into its shader.
+             */
+            final var metadata = this.entityRenderMetadata.computeIfAbsent(entity, k ->
+
+                /*
+                 * This step is done lazily as entities may be added over time after the render system has been started.
+                 * If this is done, the above computeIfAbsent check will miss, and a new metadata object will be
+                 * created.
+                 */
                 generateEntityRenderMetadata(entity, entityManager)
             );
 
+            /*
+             * Rendering is ultimately done by the shader itself, so the below sets the new vertex positions, normals,
+             * colors, lighting, and other inputs before invoking a call to "draw". This is done within an implicit
+             * bind/unbind call to the shader program, which is handled below by the call to runInShader.
+             */
             metadata.shaderProgram.runInShader((shader) -> {
-                // calculate the projection and world matrices relative to this entity, passing them to the shader
-                final var entityTransformation = this.transformation.getEntityTransformation(metadata.transform, cameraTransformation);
 
+                /*
+                 * Step 1: pass the various inputs into the shader arguments.
+                 */
                 shader.setFrustumTransformation(frustumTransformation);
-                shader.setEntityTransformation(entityTransformation);
+                shader.setEntityTransformation(getEntityTransformation(metadata.transform, cameraTransformation));
                 shader.setMaterialTransformation(metadata.material());
                 shader.setSpecularPowerTransformation(lightManager.getSpecularPower());
                 shader.setAmbientLightTransformation(lightManager.getAmbientLight());
 
+                /*
+                 * Step 2: as a special case, set the locations of the (possibly-mobile!) positional lights.
+                 */
                 for (final var light : lightManager.getPositionalLights()) {
                     final var lightCopy = light.copy();
                     final var lightPos = lightCopy.getPosition();
@@ -84,12 +104,37 @@ public class OpenGlRenderSystem
                     shader.setPositionalLightTransformation(lightCopy);
                 }
 
-                // render the entity's vertices
+                /*
+                 * Step 3: invoke glDrawElements to initiate a call to the GPU. Note that this call will be done within
+                 * the context of the shader due to the enclosing runInShader call.
+                 */
                 GL30.glBindVertexArray(metadata.vaoID);
                 GL11.glDrawElements(GL11.GL_TRIANGLES, metadata.mesh.getVertexRenderOrder().length, GL11.GL_UNSIGNED_INT, 0);
                 GL30.glBindVertexArray(0);
             });
         }
+    }
+
+    public Matrix4f getCameraTransformation(final Camera camera) {
+        final var cameraPosition = camera.getPosition();
+        final var cameraTarget = camera.getTarget();
+
+        return new Matrix4f()
+            .identity()
+            .lookAt(cameraPosition, cameraPosition.add(cameraTarget, new Vector3f()), Vectors.up())
+            .translate(-cameraPosition.x(), -cameraPosition.y(), -cameraPosition.z());
+    }
+
+    public Matrix4f getEntityTransformation(final Transform transform, final Matrix4f cameraTransformation) {
+        final var positionMatrix = new Matrix4f()
+            .identity()
+            .translate(transform.getPosition())
+            .rotateX((float) Math.toRadians(transform.getRotation().x()))
+            .rotateY((float) Math.toRadians(transform.getRotation().y()))
+            .rotateZ((float) Math.toRadians(transform.getRotation().z()))
+            .scale(transform.getScale());
+        final var cameraCurrent = new Matrix4f(cameraTransformation);
+        return cameraCurrent.mul(positionMatrix);
     }
 
     @Override
@@ -106,144 +151,186 @@ public class OpenGlRenderSystem
     private RenderMetadata generateEntityRenderMetadata(final Entity entity, final EntityManager entityManager) {
         LOGGER.debug("Initializing metadata for entity {}", entity);
 
+        /*
+         * These IDs will ultimately act as handles into the OpenGL VAO content. These are all that need to be stored
+         * on the final RenderMetadata object.
+         */
         final int vaoID;
-        final int vertexVboID;
+        final int positionVboID;
         final int normalVboID;
-        final int indexVboID;
         final int colorVboID;
+        final int indexVboID;
 
-        // entities must have a mesh
+
+        /*
+         * Retrieve the Mesh from the entity, to be referenced when retrieving vertex data. If no Mesh is found,
+         * something wrong must have occurred (as the render system should have used a call like the following:
+         * entityManager.getEntitiesWithComponent(Mesh.class)).
+         */
         final Mesh mesh = entityManager.getComponent(entity, Mesh.class).orElseThrow();
 
-        // if a material is not found, use a default
+        /*
+         * Retrieve the Material from the entity. It is not required to have a material, so in the case that one is not
+         * found, default to an opaque gray.
+         */
         final var material = entityManager.getComponent(entity, Material.class).orElse(
             new Color(
                 new Vector4f(0.4f, 0.4f, 0.4f, 1.0f)
             )
         );
 
-        // if a transform is not found, use a default
+        /*
+         * Retrieve the Transform from the entity. It is not required to have a transform, so in the case that one is
+         * not found, default to a 0-ed one (no scaling, no rotation, no position).
+         */
         final var transform = entityManager.getComponent(entity, Transform.class).orElse(
             new Transform()
         );
 
-        // initialize VBO data
-        FloatBuffer vboBuffer = null;
+
+        /*
+         * Initialize Java buffers to be used as the sources of data for the below OpenGL VBOs. In this case each VBO
+         * represents the data expected by the shader program, and must be declared in the appropriate order. To start,
+         * the shaders used by this engine have the following block for data:
+         *
+         * layout (location =0) in vec3 position;
+         * layout (location =1) in vec4 inColor;
+         * layout (location =2) in vec3 vertexNormal;
+         *
+         * so, the below will create these VBOs of the specified vector type in the specified order.
+         */
+        FloatBuffer positionVBOBuffer = null;
         FloatBuffer colorBuffer = null;
-        IntBuffer idxBuffer = null;
         FloatBuffer normalBuffer = null;
+        IntBuffer idxBuffer = null;
+
+        /*
+         * Prepare and set in context (bind) the VAO for this entity.
+         */
+        vaoID = GL30.glGenVertexArrays();
+        GL30.glBindVertexArray(vaoID);
+
+        /*
+         * Create and bind the VBOs to this VAO
+         */
         try {
-            // prepare VAO
-            vaoID = GL30.glGenVertexArrays();
-            GL30.glBindVertexArray(vaoID);
+            /*
+             * Prepare the buffer for the "position" shader input.
+             */
+            final var vertices = mesh.getVertices();
+            positionVBOBuffer = MemoryUtil.memAllocFloat(vertices.length);
+            positionVBOBuffer.put(vertices).flip();
 
-            // prepare VBO (for vertex positions)
-            final float[] vertices = mesh.getVertices();
-            vboBuffer = MemoryUtil.memAllocFloat(vertices.length);
-            vboBuffer.put(vertices).flip();
-
-            vertexVboID = GL15.glGenBuffers();
-            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexVboID);
-            GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vboBuffer, GL15.GL_STATIC_DRAW);
-            GL20.glEnableVertexAttribArray(0);
-            GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, 0, 0);
-
-            // prepare VBO (for shader)
-            final float[] colors = material.getColorsForVertices(vertices);
+            /*
+             * Prepare the buffer for the "inColor" shader input.
+             */
+            final var colors = material.getColorsForVertices(vertices);
             colorBuffer = MemoryUtil.memAllocFloat(colors.length);
             colorBuffer.put(colors).flip();
 
-            colorVboID = GL15.glGenBuffers();
-            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, colorVboID);
-            GL15.glBufferData(GL15.GL_ARRAY_BUFFER, colorBuffer, GL15.GL_STATIC_DRAW);
-            GL20.glEnableVertexAttribArray(1);
-            GL20.glVertexAttribPointer(1, 4, GL11.GL_FLOAT, false, 0, 0);
-
-            // prepare VBO (for vertex normals)
-            final float[] normals = mesh.getVertexNormals();
+            /*
+             * Prepare the buffer for the "vertexNormals" shader input.
+             */
+            final var normals = mesh.getVertexNormals();
             normalBuffer = MemoryUtil.memAllocFloat(normals.length);
             normalBuffer.put(normals).flip();
 
-            normalVboID = GL15.glGenBuffers();
-            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, normalVboID);
-            GL15.glBufferData(GL15.GL_ARRAY_BUFFER, normalBuffer, GL15.GL_STATIC_DRAW);
-            GL20.glEnableVertexAttribArray(2);
-            GL20.glVertexAttribPointer(2, 3, GL11.GL_FLOAT, false, 0, 0);
+            /*
+             * Create VBOs within the context of this VAO, ensuring that the input index corresponds to the "location"
+             * specified in the shader program.
+             */
+            positionVboID = createAndLoadVBO(0, positionVBOBuffer, 3);
+            colorVboID = createAndLoadVBO(1, colorBuffer, 4);
+            normalVboID = createAndLoadVBO(2, normalBuffer, 3);
 
-            // prepare VBO (for vertex indices)
-            final int[] indices = mesh.getVertexRenderOrder();
+            /*
+             * At the end of the VAO, add a final VBO that contains the render order for each mesh. This will be used
+             * to construct polygons out of the individual vertices during the Geometry Processing phase of the graphics
+             * pipeline.
+             */
+            final var indices = mesh.getVertexRenderOrder();
             idxBuffer = MemoryUtil.memAllocInt(indices.length);
             idxBuffer.put(indices).flip();
 
             indexVboID = GL15.glGenBuffers();
             GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, indexVboID);
             GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, idxBuffer, GL15.GL_STATIC_DRAW);
-
-            // link shader program into this VBO
-            material.getShaderProgram().link();
-
-            // unbind VBO and VAO
-            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
-            GL30.glBindVertexArray(0);
         }
         finally {
-            if (vboBuffer != null) {
-                MemoryUtil.memFree(vboBuffer);
-            }
+            /*
+             * Now that the memory has been loaded from the Java heap into VRAM, we can clear the unneeded Java buffers
+             */
             if (idxBuffer != null) {
                 MemoryUtil.memFree(idxBuffer);
-            }
-            if (colorBuffer != null) {
-                MemoryUtil.memFree(colorBuffer);
             }
             if (normalBuffer != null) {
                 MemoryUtil.memFree(normalBuffer);
             }
+            if (colorBuffer != null) {
+                MemoryUtil.memFree(colorBuffer);
+            }
+            if (positionVBOBuffer != null) {
+                MemoryUtil.memFree(positionVBOBuffer);
+            }
         }
 
-        return new RenderMetadata(vaoID, vertexVboID, colorVboID, normalVboID, indexVboID, mesh, material, material.getShaderProgram(), transform);
+        /*
+         * Link the mesh's shader program into this VAO
+         */
+        material.getShaderProgram().link();
+
+        /*
+         * Unbind any VBO
+         */
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+
+        /*
+         * Unbind the VAO
+         */
+        GL30.glBindVertexArray(0);
+
+        return new RenderMetadata(vaoID, positionVboID, colorVboID, normalVboID, indexVboID, mesh, material, material.getShaderProgram(), transform);
     }
 
-    private static class Transformation {
+    private int createAndLoadVBO(final int inputAttributeIndex, final FloatBuffer buffer, final int elementsPerVertex) {
+        final int vboID = GL15.glGenBuffers();
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vboID);
+        GL15.glBufferData(GL15.GL_ARRAY_BUFFER, buffer, GL15.GL_STATIC_DRAW);
+        GL20.glEnableVertexAttribArray(inputAttributeIndex);
+        GL20.glVertexAttribPointer(inputAttributeIndex, elementsPerVertex, GL11.GL_FLOAT, false, 0, 0);
+        return vboID;
+    }
 
-        private final Matrix4f frustumTransformation;
-        private final Matrix4f positionTransformation;
-        private final Matrix4f cameraTransformation;
+    /**
+     * A helper class used to generate and cache the view frustum for the render system. As the frustum only changes
+     * when the dimensions of the window change (or when other less mutable values change, such as the Z values or the
+     * field of view) the Frustum matrix (used as the starting place for calculating mesh vertex positions) can easily
+     * be cached.
+     */
+    private static class Frustum {
 
-        public Transformation() {
-            this.frustumTransformation = new Matrix4f();
-            this.positionTransformation = new Matrix4f();
-            this.cameraTransformation = new Matrix4f();
-        }
+        private float cachedMatrixWidth;
+        private float cachedMatrixHeight;
+        private Matrix4f cachedMatrix;
 
-        public Matrix4f getFrustumTransformation(final float fov,
-                                                 final float width,
-                                                 final float height,
-                                                 final float zNear,
-                                                 float zFar) {
-            float aspectRatio = width / height;
-            this.frustumTransformation.identity();
-            this.frustumTransformation.perspective(fov, aspectRatio, zNear, zFar);
-            return this.frustumTransformation;
-        }
+        public Matrix4f toMatrix(final float fov,
+                                 final float width,
+                                 final float height,
+                                 final float zNear,
+                                 final float zFar) {
+            if (this.cachedMatrix != null && this.cachedMatrixWidth == width && this.cachedMatrixHeight == height) {
+                return this.cachedMatrix;
+            }
 
-        public Matrix4f getCameraTransformation(final Camera camera) {
-            final Vector3f cameraPosition = camera.getPosition();
-            final Vector3f cameraTarget = camera.getTarget();
-            this.cameraTransformation.identity()
-                .lookAt(cameraPosition, cameraPosition.add(cameraTarget, new Vector3f()), Vectors.up())
-                .translate(-cameraPosition.x(), -cameraPosition.y(), -cameraPosition.z());
-            return this.cameraTransformation;
-        }
+            final var aspectRatio = width / height;
 
-        public Matrix4f getEntityTransformation(final Transform transform, final Matrix4f cameraTransformation) {
-            this.positionTransformation.identity().translate(transform.getPosition())
-                .rotateX((float) Math.toRadians(transform.getRotation().x()))
-                .rotateY((float) Math.toRadians(transform.getRotation().y()))
-                .rotateZ((float) Math.toRadians(transform.getRotation().z()))
-                .scale(transform.getScale());
-            final Matrix4f cameraCurrent = new Matrix4f(cameraTransformation);
-            return cameraCurrent.mul(this.positionTransformation);
+            this.cachedMatrix = new Matrix4f()
+                .identity()
+                .perspective(fov, aspectRatio, zNear, zFar);
+            this.cachedMatrixWidth = width;
+            this.cachedMatrixHeight = height;
+
+            return this.cachedMatrix;
         }
     }
 
