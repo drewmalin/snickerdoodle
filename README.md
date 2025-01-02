@@ -33,5 +33,6 @@ Unsupported JNI version detected, this may result in a crash. Please inform LWJG
 ``` 
 
 Inspirations:
+* https://learnopengl.com/
 * https://lwjglgamedev.gitbooks.io/3d-game-development-with-lwjgl/content/
 * https://gafferongames.com (specifically: https://gafferongames.com/post/fix_your_timestep/)

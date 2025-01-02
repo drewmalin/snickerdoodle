@@ -4,11 +4,15 @@ import com.drewmalin.snickerdoodle.engine.Engine;
 import com.drewmalin.snickerdoodle.engine.ecs.system.InputSystem;
 import com.drewmalin.snickerdoodle.engine.window.InputUpdateHandler;
 import com.drewmalin.snickerdoodle.engine.window.Window;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.joml.Vector2d;
 import org.joml.Vector2f;
 
 public class OpenGlInputSystem
     implements InputSystem {
+
+    private static final Logger LOGGER = LogManager.getLogger(OpenGlInputSystem.class);
 
     private final Vector2d mousePosition;
     private final InputUpdateHandler handler;
@@ -41,7 +45,7 @@ public class OpenGlInputSystem
 
     @Override
     public void destroy() {
-
+        LOGGER.debug("OpenGL input system destroyed");
     }
 
 }

@@ -33,8 +33,25 @@ uniform mat4 frustumTransformation;
 
 void main()
 {
+    // The final matrix to multiply any given vertex position by is represented by the following equation:
+    //
+    //   matrix =
+    //     frustum_matrix *
+    //     translation_matrix *
+    //     rotation_matrix *
+    //     scale_matrix
+    //
+    // with this, we can perform the matrix multiplication of:
+    //
+    //    |m0  m1  m2  m3 |   |position_x|   |new_position_x|
+    //    |m4  m5  m6  m7 |   |position_y|   |new_position_y|
+    //    |m8  m9  m10 m11| * |position_z| = |new_position_z|
+    //    |m12 m13 m14 m15|   |    1     |   |      1       |
+    //
+    // Remember: the "gl_Position" value is built-in and will be used as this new position vector.
     vec4 mvPos = entityTransformation * vec4(position, 1.0);
 	gl_Position = frustumTransformation * mvPos;
+
 	exColor = inColor;
 	mvVertexNormal = normalize(entityTransformation * vec4(vertexNormal, 0.0)).xyz;
 	mvVertexPos = mvPos.xyz;

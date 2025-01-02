@@ -236,6 +236,8 @@ public class OpenGlWindow
             }
             callback.close();
         }
+        this.inputSystem.destroy();
+        this.renderSystem.destroy();
         GLFW.glfwDestroyWindow(this.windowHandle);
         LOGGER.debug("OpenGL window destroyed");
     }

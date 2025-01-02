@@ -142,10 +142,15 @@ public class OpenGlRenderSystem
         GL20.glDisableVertexAttribArray(0);
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
         GL30.glBindVertexArray(0);
-        for (final var metadata : this.entityRenderMetadata.values()) {
+        for (final var entry : this.entityRenderMetadata.entrySet()) {
+            final var entity = entry.getKey();
+            final var metadata = entry.getValue();
+
             metadata.destroy();
+            LOGGER.debug("Metadata deleted for entity {}", entity);
         }
         this.entityRenderMetadata.clear();
+        LOGGER.debug("OpenGL render system destroyed");
     }
 
     private RenderMetadata generateEntityRenderMetadata(final Entity entity, final EntityManager entityManager) {
@@ -160,7 +165,6 @@ public class OpenGlRenderSystem
         final int normalVboID;
         final int colorVboID;
         final int indexVboID;
-
 
         /*
          * Retrieve the Mesh from the entity, to be referenced when retrieving vertex data. If no Mesh is found,
@@ -186,7 +190,6 @@ public class OpenGlRenderSystem
         final var transform = entityManager.getComponent(entity, Transform.class).orElse(
             new Transform()
         );
-
 
         /*
          * Initialize Java buffers to be used as the sources of data for the below OpenGL VBOs. In this case each VBO
@@ -246,7 +249,8 @@ public class OpenGlRenderSystem
             /*
              * At the end of the VAO, add a final VBO that contains the render order for each mesh. This will be used
              * to construct polygons out of the individual vertices during the Geometry Processing phase of the graphics
-             * pipeline.
+             * pipeline. Note that the shader will not reference this data as an input -- we will use it in the update
+             * loop directly.
              */
             final var indices = mesh.getVertexRenderOrder();
             idxBuffer = MemoryUtil.memAllocInt(indices.length);
@@ -255,6 +259,7 @@ public class OpenGlRenderSystem
             indexVboID = GL15.glGenBuffers();
             GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, indexVboID);
             GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, idxBuffer, GL15.GL_STATIC_DRAW);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
         }
         finally {
             /*
@@ -280,11 +285,6 @@ public class OpenGlRenderSystem
         material.getShaderProgram().link();
 
         /*
-         * Unbind any VBO
-         */
-        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
-
-        /*
          * Unbind the VAO
          */
         GL30.glBindVertexArray(0);
@@ -293,11 +293,32 @@ public class OpenGlRenderSystem
     }
 
     private int createAndLoadVBO(final int inputAttributeIndex, final FloatBuffer buffer, final int elementsPerVertex) {
+        /*
+         * Create and bind the new VBO
+         */
         final int vboID = GL15.glGenBuffers();
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vboID);
+
+        /*
+         * Write the buffer data into OpenGL for eventual storage in VRAM
+         */
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, buffer, GL15.GL_STATIC_DRAW);
+
+        /*
+         * Set the location (really, the offset) of this location in the greater VAO
+         */
         GL20.glEnableVertexAttribArray(inputAttributeIndex);
+
+        /*
+         * Specify the number of elements for each entry per vertex.
+         */
         GL20.glVertexAttribPointer(inputAttributeIndex, elementsPerVertex, GL11.GL_FLOAT, false, 0, 0);
+
+        /*
+         * Unbind the VBO to prevent further operations from unintentionally associating data with it
+         */
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+
         return vboID;
     }
 
