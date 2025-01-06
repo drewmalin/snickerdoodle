@@ -3,8 +3,10 @@ package com.drewmalin.snickerdoodle.game;
 import com.drewmalin.snickerdoodle.engine.EngineFactory;
 import com.drewmalin.snickerdoodle.engine.camera.DefaultCamera;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Color;
-import com.drewmalin.snickerdoodle.engine.ecs.component.Cube;
+import com.drewmalin.snickerdoodle.engine.ecs.component.Cube14;
+import com.drewmalin.snickerdoodle.engine.ecs.component.Cube8;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Plane;
+import com.drewmalin.snickerdoodle.engine.ecs.component.Texture14;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Transform;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.DefaultEntityManager;
 import com.drewmalin.snickerdoodle.engine.opengl.OpenGlInputSystem;
@@ -159,22 +161,22 @@ public class Game {
         final var entityManager = new DefaultEntityManager();
 
         final var planeMesh = new Plane();
-        final var cubeMesh = new Cube();
+        final var cubeMesh = new Cube8();
 
-        final var yellowMaterial = Color.builder().red(1.0f).green(1.0f).build();
-        final var redMaterial = Color.builder().red(1.0f).build();
-        final var blueMaterial = Color.builder().blue(1.0f).build();
-        final var grayMaterial = Color.builder().red(0.4f).green(0.4f).blue(0.4f).build();
+        final var yellowMaterial = Color.builder().rgb(1.0f, 1.0f, 0.0f).build();
+        final var redMaterial = Color.builder().rgb(1.0f, 0.0f, 0.0f).build();
+        final var blueMaterial = Color.builder().rgb(0.0f, 1.0f, 0.0f).build();
+        final var grayMaterial = Color.builder().rgb(0.4f, 0.4f, 0.4f).build();
 
         final Script rotateScript = (e, em, dt) -> {
-            var speed = 5f;
+            var speed = 50f;
             var delta = speed * dt;
             final var transform = em.getComponent(e, Transform.class).orElseThrow();
             var rot = transform.getRotation().x() + delta;
             if (rot > 360) {
                 rot = 0;
             }
-            transform.setRotation((float) rot, (float) rot, (float) rot);
+            transform.setRotation((float) rot, (float) rot, (float) 0);
         };
 
         final var yellowCube = entityManager.newEntity("yellowCube");
@@ -195,9 +197,10 @@ public class Game {
             .build()
         );
 
-        final var blueCube = entityManager.newEntity("blueCube");
-        entityManager.putComponent(blueCube, cubeMesh);
-        entityManager.putComponent(blueCube, blueMaterial);
+        final var texture = new Texture14("/textures/debug.png");
+        final var blueCube = entityManager.newEntity("texturedCube");
+        entityManager.putComponent(blueCube, new Cube14());
+        entityManager.putComponent(blueCube, texture);
         entityManager.putComponent(blueCube, rotateScript);
         entityManager.putComponent(blueCube, Transform.builder()
             .position(new Vector3f(0f, 0f, -3f))

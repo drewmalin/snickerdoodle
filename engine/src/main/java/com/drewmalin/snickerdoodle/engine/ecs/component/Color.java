@@ -1,30 +1,31 @@
 package com.drewmalin.snickerdoodle.engine.ecs.component;
 
-import com.drewmalin.snickerdoodle.engine.opengl.OpenGlShaderProgram;
 import com.drewmalin.snickerdoodle.engine.utils.Vectors;
 import org.joml.Vector4f;
 
-public class Color extends Material {
+public class Color
+    extends Material {
 
-    public Color(final Vector4f rgba, final OpenGlShaderProgram shaderProgram) {
+    private Color(final Vector4f rgba) {
         super(
-                rgba,
-                rgba,
-                rgba,
-                0,
-            shaderProgram
+            rgba,
+            rgba,
+            rgba,
+            0
         );
     }
 
-    public Color(final Vector4f rgba) {
-        this(rgba, OpenGlShaderProgram.defaultRgba());
+    private Color(final Builder builder) {
+        this(
+            new Vector4f(
+                builder.r,
+                builder.g,
+                builder.b,
+                builder.a
+            )
+        );
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    @Override
     public float[] getColorsForVertices(final float[] vertices) {
         final float[] colors = new float[(vertices.length / 3) * 4];
 
@@ -42,45 +43,34 @@ public class Color extends Material {
     public String toString() {
         return "Color["
             + "rgba=" + Vectors.toString(getAmbient()) + ", "
-            + "shader=" + getShaderProgram()
             + "]";
     }
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public static class Builder {
+
         private float r;
         private float g;
         private float b;
         private float a;
-        private OpenGlShaderProgram shaderProgram;
 
-        public Builder red(final float r) {
+        public Builder rgb(final float r, final float g, final float b) {
+            return rgba(r, g, b, 0f);
+        }
+
+        public Builder rgba(final float r, final float g, final float b, final float a) {
             this.r = r;
-            return this;
-        }
-
-
-        public Builder green(final float g) {
             this.g = g;
-            return this;
-        }
-
-        public Builder blue(final float b) {
             this.b = b;
-            return this;
-        }
-
-        public Builder alpha(final float a) {
             this.a = a;
             return this;
         }
 
-        public Builder shader(final OpenGlShaderProgram shaderProgram) {
-            this.shaderProgram = shaderProgram;
-            return this;
-        }
-
         public Color build() {
-            return new Color(new Vector4f(this.r, this.g, this.b, this.a));
+            return new Color(this);
         }
     }
 }

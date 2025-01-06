@@ -1,6 +1,10 @@
 package com.drewmalin.snickerdoodle.engine.ecs.component;
 
-public class Cube implements Mesh {
+/**
+ * A cube composed of 8 vertices.
+ */
+public class Cube8
+    implements Mesh {
 
     private static final float VERTEX_LENGTH = 0.5f;
     private static final float NORMAL_LENGTH = 0.5774f;

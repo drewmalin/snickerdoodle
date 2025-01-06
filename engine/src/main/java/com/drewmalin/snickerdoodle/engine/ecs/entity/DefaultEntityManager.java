@@ -80,7 +80,8 @@ public class DefaultEntityManager implements EntityManager {
             if (rawComponent == null) {
 //                LOGGER.error("Attempted to get a component for entity {}, which does not exist", entity);
 //                LOGGER.debug("have: {}", entityComponentMap);
-                throw new IllegalArgumentException(String.format("Attempted to get a component for entity %s, which does not exist", entity));
+//                throw new IllegalArgumentException(String.format("Attempted to get a component for entity %s, which does not exist", entity));
+                return Optional.empty();
             }
 
             @SuppressWarnings("unchecked") T component = (T) rawComponent;
