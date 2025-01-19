@@ -3,23 +3,22 @@ package com.drewmalin.snickerdoodle.game;
 import com.drewmalin.snickerdoodle.engine.EngineFactory;
 import com.drewmalin.snickerdoodle.engine.camera.DefaultCamera;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Color;
-import com.drewmalin.snickerdoodle.engine.ecs.component.Cube14;
-import com.drewmalin.snickerdoodle.engine.ecs.component.Cube8;
-import com.drewmalin.snickerdoodle.engine.ecs.component.Plane;
-import com.drewmalin.snickerdoodle.engine.ecs.component.Texture14;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Transform;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.DefaultEntityManager;
-import com.drewmalin.snickerdoodle.engine.opengl.OpenGlInputSystem;
-import com.drewmalin.snickerdoodle.engine.opengl.OpenGlRenderSystem;
 import com.drewmalin.snickerdoodle.engine.ecs.system.DefaultScriptSystem;
 import com.drewmalin.snickerdoodle.engine.light.Attenuation;
 import com.drewmalin.snickerdoodle.engine.light.DefaultLightManager;
 import com.drewmalin.snickerdoodle.engine.light.Light;
 import com.drewmalin.snickerdoodle.engine.light.PointLight;
+import com.drewmalin.snickerdoodle.engine.model.ColoredCube;
+import com.drewmalin.snickerdoodle.engine.model.ColoredPlane;
+import com.drewmalin.snickerdoodle.engine.model.TexturedCube;
 import com.drewmalin.snickerdoodle.engine.opengl.OpenGlEngine;
+import com.drewmalin.snickerdoodle.engine.opengl.OpenGlInputSystem;
+import com.drewmalin.snickerdoodle.engine.opengl.OpenGlRenderSystem;
+import com.drewmalin.snickerdoodle.engine.opengl.OpenGlWindow;
 import com.drewmalin.snickerdoodle.engine.scene.Scene;
 import com.drewmalin.snickerdoodle.engine.script.Script;
-import com.drewmalin.snickerdoodle.engine.opengl.OpenGlWindow;
 import com.drewmalin.snickerdoodle.engine.window.Window;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -160,14 +159,6 @@ public class Game {
          */
         final var entityManager = new DefaultEntityManager();
 
-        final var planeMesh = new Plane();
-        final var cubeMesh = new Cube8();
-
-        final var yellowMaterial = Color.builder().rgb(1.0f, 1.0f, 0.0f).build();
-        final var redMaterial = Color.builder().rgb(1.0f, 0.0f, 0.0f).build();
-        final var blueMaterial = Color.builder().rgb(0.0f, 1.0f, 0.0f).build();
-        final var grayMaterial = Color.builder().rgb(0.4f, 0.4f, 0.4f).build();
-
         final Script rotateScript = (e, em, dt) -> {
             var speed = 50f;
             var delta = speed * dt;
@@ -179,38 +170,52 @@ public class Game {
             transform.setRotation((float) rot, (float) rot, (float) 0);
         };
 
+        /*
+         * A yellow cube
+         */
         final var yellowCube = entityManager.newEntity("yellowCube");
-        entityManager.putComponent(yellowCube, cubeMesh);
-        entityManager.putComponent(yellowCube, yellowMaterial);
+        final var yellowCubeModel = new ColoredCube(Color.yellow());
+        entityManager.putComponent(yellowCube, yellowCubeModel.getMesh());
+        entityManager.putComponent(yellowCube, yellowCubeModel.getMaterial());
         entityManager.putComponent(yellowCube, rotateScript);
         entityManager.putComponent(yellowCube, Transform.builder()
             .position(new Vector3f(3f, 0f, 3f))
             .build()
         );
 
+        /*
+         * A red cube
+         */
         final var redCube = entityManager.newEntity("redCube");
-        entityManager.putComponent(redCube, cubeMesh);
-        entityManager.putComponent(redCube, redMaterial);
+        final var redCubeModel = new ColoredCube(Color.red());
+        entityManager.putComponent(redCube, redCubeModel.getMesh());
+        entityManager.putComponent(redCube, redCubeModel.getMaterial());
         entityManager.putComponent(redCube, rotateScript);
         entityManager.putComponent(redCube, Transform.builder()
             .position(new Vector3f(-3f, 0f, 3f))
             .build()
         );
 
-        final var texture = new Texture14("/textures/debug.png");
-        final var blueCube = entityManager.newEntity("texturedCube");
-        entityManager.putComponent(blueCube, new Cube14());
-        entityManager.putComponent(blueCube, texture);
-        entityManager.putComponent(blueCube, rotateScript);
-        entityManager.putComponent(blueCube, Transform.builder()
+        /*
+         * A textured cube
+         */
+        final var texturedCube = entityManager.newEntity("texturedCube");
+        final var texturedCubeModel = new TexturedCube("/textures/debug.png");
+        entityManager.putComponent(texturedCube, texturedCubeModel.getMesh());
+        entityManager.putComponent(texturedCube, texturedCubeModel.getMaterial());
+        entityManager.putComponent(texturedCube, rotateScript);
+        entityManager.putComponent(texturedCube, Transform.builder()
             .position(new Vector3f(0f, 0f, -3f))
             .build()
         );
 
-        // "ground"
+        /*
+         * The "ground"
+         */
         final var ground = entityManager.newEntity("ground");
-        entityManager.putComponent(ground, planeMesh);
-        entityManager.putComponent(ground, grayMaterial);
+        final var groundModel = new ColoredPlane(Color.gray());
+        entityManager.putComponent(ground, groundModel.getMesh());
+        entityManager.putComponent(ground, groundModel.getMaterial());
         entityManager.putComponent(ground, Transform.builder()
             .rotation(new Vector3f(270f, 0f, 0f))
             .position(new Vector3f(0f, -1f, 0f))

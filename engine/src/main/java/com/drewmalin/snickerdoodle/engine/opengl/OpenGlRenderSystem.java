@@ -2,7 +2,7 @@ package com.drewmalin.snickerdoodle.engine.opengl;
 
 import com.drewmalin.snickerdoodle.engine.Engine;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Mesh;
-import com.drewmalin.snickerdoodle.engine.ecs.component.Texture14;
+import com.drewmalin.snickerdoodle.engine.ecs.component.Texture;
 import com.drewmalin.snickerdoodle.engine.ecs.system.RenderSystem;
 import com.drewmalin.snickerdoodle.engine.opengl.shader.ColorShader;
 import com.drewmalin.snickerdoodle.engine.opengl.shader.OpenGlShader;
@@ -45,7 +45,7 @@ public class OpenGlRenderSystem
              * Fetch the appropriate shader for the mesh. If none is found, use a default color.
              */
             final OpenGlShader shader;
-            if (entityManager.getComponent(entity, Texture14.class).isPresent()) {
+            if (entityManager.getComponent(entity, Texture.class).isPresent()) {
                 shader = TextureShader.get();
             }
             else {

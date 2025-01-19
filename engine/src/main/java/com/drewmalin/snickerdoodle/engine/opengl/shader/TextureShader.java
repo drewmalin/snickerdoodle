@@ -2,7 +2,7 @@ package com.drewmalin.snickerdoodle.engine.opengl.shader;
 
 import com.drewmalin.snickerdoodle.engine.ecs.component.Material;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Mesh;
-import com.drewmalin.snickerdoodle.engine.ecs.component.Texture14;
+import com.drewmalin.snickerdoodle.engine.ecs.component.Texture;
 import com.drewmalin.snickerdoodle.engine.ecs.component.Transform;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.Entity;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.EntityManager;
@@ -112,9 +112,9 @@ public class TextureShader
         final Mesh mesh = entityManager.getComponent(entity, Mesh.class).orElseThrow();
 
         /*
-         * Retrieve the Texture from the entity. It is not required to have a texture.
+         * Retrieve the Texture from the entity. It is required to have a texture.
          */
-        final var texture = entityManager.getComponent(entity, Texture14.class).orElseThrow();
+        final var texture = entityManager.getComponent(entity, Texture.class).orElseThrow();
 
         /*
          * Retrieve the Transform from the entity. It is not required to have a transform, so in the case that one is
