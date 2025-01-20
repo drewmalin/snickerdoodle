@@ -7,10 +7,14 @@ import com.drewmalin.snickerdoodle.engine.ecs.component.Transform;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.Entity;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.EntityManager;
 import com.drewmalin.snickerdoodle.engine.light.LightManager;
+import com.drewmalin.snickerdoodle.engine.light.PositionalLight;
+import com.drewmalin.snickerdoodle.engine.opengl.OpenGlUtils;
 import com.drewmalin.snickerdoodle.engine.utils.Files;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL30;
@@ -24,7 +28,7 @@ import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.drewmalin.snickerdoodle.engine.opengl.shader.Utils.resourceToByteBuffer;
+import static com.drewmalin.snickerdoodle.engine.opengl.shader.ShaderUtils.resourceToByteBuffer;
 
 public class TextureShader
     extends OpenGlShader {
@@ -37,6 +41,18 @@ public class TextureShader
     private static final String UNIFORM_TEXTURE_SAMPLER = "texture_sampler";
     private static final String UNIFORM_FRUSTUM_TRANSFORMATION = "frustumTransformation";
     private static final String UNIFORM_ENTITY_TRANSFORMATION = "entityTransformation";
+    private static final String UNIFORM_SPECULAR_POWER_TRANSFORMATION = "specularPower";
+    private static final String UNIFORM_AMBIENT_LIGHT_TRANSFORMATION = "ambientLight";
+    private static final String MATERIAL_AMBIENT = "material.ambient";
+    private static final String MATERIAL_DIFFUSE = "material.diffuse";
+    private static final String MATERIAL_SPECULAR = "material.specular";
+    private static final String MATERIAL_REFLECTANCE = "material.reflectance";
+    private static final String POSITIONAL_LIGHT_COLOR = "positionalLight.color";
+    private static final String POSITIONAL_LIGHT_POSITION = "positionalLight.position";
+    private static final String POSITIONAL_LIGHT_INTENSITY = "positionalLight.intensity";
+    private static final String POSITIONAL_LIGHT_ATT_CONSTANT = "positionalLight.att.constant";
+    private static final String POSITIONAL_LIGHT_ATT_LINEAR = "positionalLight.att.linear";
+    private static final String POSITIONAL_LIGHT_ATT_EXPONENT = "positionalLight.att.exponent";
 
     private final Map<Entity, OpenGlShaderMetadata> cachedMetadata;
 
@@ -64,6 +80,10 @@ public class TextureShader
         prepareTextureSampler();
         prepareFrustumTransformation();
         prepareEntityTransformation();
+        prepareSpecularPowerTransformation();
+        prepareAmbientLightTransformation();
+        prepareMaterialTransformation();
+        preparePositionalLightTransformation();
     }
 
     @Override
@@ -74,13 +94,41 @@ public class TextureShader
                          final Matrix4f cameraTransformation) {
         final var metadata = getOrCreateRenderMetadata(entity, entityManager);
 
+        /*
+         * Step 1: pass the various inputs into the shader arguments.
+         */
         setTextureSampler(0);
         setFrustumTransformation(frustumTransformation);
-        setEntityTransformation(com.drewmalin.snickerdoodle.engine.opengl.Utils.getEntityTransformation(metadata.transform(), cameraTransformation));
+        setEntityTransformation(OpenGlUtils.getEntityTransformation(metadata.transform(), cameraTransformation));
+        setMaterialTransformation(metadata.material());
+        setSpecularPowerTransformation(lightManager.getSpecularPower());
+        setAmbientLightTransformation(lightManager.getAmbientLight());
 
+        /*
+         * Step 2: activate the texture
+         */
         GL30.glActiveTexture(GL30.GL_TEXTURE0);
         GL30.glBindTexture(GL30.GL_TEXTURE_2D, metadata.textureID);
 
+
+        /*
+         * Step 3: as a special case, set the locations of the (possibly-mobile!) positional lights.
+         */
+        for (final var light : lightManager.getPositionalLights()) {
+            final var lightCopy = light.copy();
+            final var lightPos = lightCopy.getPosition();
+            final var aux = new Vector4f(lightPos, 1f);
+
+            aux.mul(cameraTransformation);
+            lightPos.x = aux.x;
+            lightPos.y = aux.y;
+            lightPos.z = aux.z;
+            setPositionalLightTransformation(lightCopy);
+        }
+
+        /*
+         * Step 4: draw!
+         */
         GL30.glBindVertexArray(metadata.vaoID());
         GL11.glDrawElements(GL11.GL_TRIANGLES, metadata.mesh().getVertexRenderOrder().length, GL11.GL_UNSIGNED_INT, 0);
         GL30.glBindVertexArray(0);
@@ -101,6 +149,7 @@ public class TextureShader
         final int vaoID;
         final int textureID;
         final int positionVboID;
+        final int normalVboID;
         final int textureVboID;
         final int indexVboID;
 
@@ -136,6 +185,7 @@ public class TextureShader
          */
         FloatBuffer positionVBOBuffer = null;
         FloatBuffer textureVBOBuffer = null;
+        FloatBuffer normalBuffer = null;
         IntBuffer idxBuffer = null;
 
         /*
@@ -196,11 +246,19 @@ public class TextureShader
             textureVBOBuffer.put(coords).flip();
 
             /*
+             * Prepare the buffer for the "vertexNormals" shader input.
+             */
+            final var normals = mesh.getVertexNormals();
+            normalBuffer = MemoryUtil.memAllocFloat(normals.length);
+            normalBuffer.put(normals).flip();
+
+            /*
              * Create VBOs within the context of this VAO, ensuring that the input index corresponds to the "location"
              * specified in the shader program.
              */
             positionVboID = createAndLoadVBO(0, positionVBOBuffer, 3);
             textureVboID = createAndLoadVBO(1, textureVBOBuffer, 2);
+            normalVboID = createAndLoadVBO(2, normalBuffer, 3);
 
             /*
              * At the end of the VAO, add a final VBO that contains the render order for each mesh. This will be used
@@ -224,6 +282,9 @@ public class TextureShader
             if (idxBuffer != null) {
                 MemoryUtil.memFree(idxBuffer);
             }
+            if (normalBuffer != null) {
+                MemoryUtil.memFree(normalBuffer);
+            }
             if (textureVBOBuffer != null) {
                 MemoryUtil.memFree(textureVBOBuffer);
             }
@@ -242,7 +303,7 @@ public class TextureShader
          */
         GL30.glBindVertexArray(0);
 
-        final var metadata = new OpenGlShaderMetadata(vaoID, textureID, positionVboID, textureVboID, indexVboID, mesh, texture, this, transform);
+        final var metadata = new OpenGlShaderMetadata(vaoID, positionVboID, textureID, textureVboID, normalVboID, indexVboID, mesh, texture, this, transform);
         this.cachedMetadata.put(entity, metadata);
         return metadata;
     }
@@ -259,6 +320,30 @@ public class TextureShader
         prepareUniform(UNIFORM_ENTITY_TRANSFORMATION);
     }
 
+    private void prepareSpecularPowerTransformation() {
+        prepareUniform(UNIFORM_SPECULAR_POWER_TRANSFORMATION);
+    }
+
+    private void prepareAmbientLightTransformation() {
+        prepareUniform(UNIFORM_AMBIENT_LIGHT_TRANSFORMATION);
+    }
+
+    private void prepareMaterialTransformation() {
+        prepareUniform(MATERIAL_AMBIENT);
+        prepareUniform(MATERIAL_DIFFUSE);
+        prepareUniform(MATERIAL_SPECULAR);
+        prepareUniform(MATERIAL_REFLECTANCE);
+    }
+
+    private void preparePositionalLightTransformation() {
+        prepareUniform(POSITIONAL_LIGHT_COLOR);
+        prepareUniform(POSITIONAL_LIGHT_POSITION);
+        prepareUniform(POSITIONAL_LIGHT_INTENSITY);
+        prepareUniform(POSITIONAL_LIGHT_ATT_CONSTANT);
+        prepareUniform(POSITIONAL_LIGHT_ATT_LINEAR);
+        prepareUniform(POSITIONAL_LIGHT_ATT_EXPONENT);
+    }
+
     private void setTextureSampler(final int value) {
         setUniformValue(UNIFORM_TEXTURE_SAMPLER, value);
     }
@@ -271,6 +356,30 @@ public class TextureShader
         setUniformValue(UNIFORM_ENTITY_TRANSFORMATION, value);
     }
 
+    private void setSpecularPowerTransformation(final float value) {
+        setUniformValue(UNIFORM_SPECULAR_POWER_TRANSFORMATION, value);
+    }
+
+    private void setAmbientLightTransformation(final Vector3f value) {
+        setUniformValue(UNIFORM_AMBIENT_LIGHT_TRANSFORMATION, value);
+    }
+
+    private void setMaterialTransformation(final Material material) {
+        setUniformValue(MATERIAL_AMBIENT, material.getAmbient());
+        setUniformValue(MATERIAL_DIFFUSE, material.getDiffuse());
+        setUniformValue(MATERIAL_SPECULAR, material.getSpecular());
+        setUniformValue(MATERIAL_REFLECTANCE, material.getReflectance());
+    }
+
+    private void setPositionalLightTransformation(final PositionalLight light) {
+        setUniformValue(POSITIONAL_LIGHT_COLOR, light.color());
+        setUniformValue(POSITIONAL_LIGHT_POSITION, light.getPosition());
+        setUniformValue(POSITIONAL_LIGHT_INTENSITY, light.getIntensity());
+        setUniformValue(POSITIONAL_LIGHT_ATT_CONSTANT, light.getAttenuation().constant());
+        setUniformValue(POSITIONAL_LIGHT_ATT_LINEAR, light.getAttenuation().linear());
+        setUniformValue(POSITIONAL_LIGHT_ATT_EXPONENT, light.getAttenuation().exponent());
+    }
+
     @Override
     public void onDestroy() {
         for (final var metadata : this.cachedMetadata.values()) {
@@ -280,9 +389,10 @@ public class TextureShader
 
     private record OpenGlShaderMetadata(
         int vaoID,
-        int textureID,
         int vertexVboID,
+        int textureID,
         int textCoordVboID,
+        int normalVboID,
         int indexVboID,
         Mesh mesh,
         Material material,
@@ -295,6 +405,7 @@ public class TextureShader
             GL15.glDeleteBuffers(this.textCoordVboID);
             GL15.glDeleteBuffers(this.indexVboID);
             GL30.glDeleteVertexArrays(this.vaoID);
+            GL15.glDeleteBuffers(this.normalVboID);
         }
     }
 }

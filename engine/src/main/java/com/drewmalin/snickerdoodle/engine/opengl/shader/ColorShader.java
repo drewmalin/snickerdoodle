@@ -8,7 +8,7 @@ import com.drewmalin.snickerdoodle.engine.ecs.entity.Entity;
 import com.drewmalin.snickerdoodle.engine.ecs.entity.EntityManager;
 import com.drewmalin.snickerdoodle.engine.light.LightManager;
 import com.drewmalin.snickerdoodle.engine.light.PositionalLight;
-import com.drewmalin.snickerdoodle.engine.opengl.Utils;
+import com.drewmalin.snickerdoodle.engine.opengl.OpenGlUtils;
 import com.drewmalin.snickerdoodle.engine.utils.Files;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -95,7 +95,7 @@ public class ColorShader
          * Step 1: pass the various inputs into the shader arguments.
          */
         setFrustumTransformation(frustumTransformation);
-        setEntityTransformation(Utils.getEntityTransformation(metadata.transform(), cameraTransformation));
+        setEntityTransformation(OpenGlUtils.getEntityTransformation(metadata.transform(), cameraTransformation));
         setMaterialTransformation(metadata.material());
         setSpecularPowerTransformation(lightManager.getSpecularPower());
         setAmbientLightTransformation(lightManager.getAmbientLight());

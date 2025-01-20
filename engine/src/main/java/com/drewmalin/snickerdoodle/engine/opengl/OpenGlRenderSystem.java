@@ -37,7 +37,7 @@ public class OpenGlRenderSystem
         final var lightManager = scene.getLightManager();
 
         final var frustumTransformation = this.frustum.toMatrix(FOV, window.getWidth(), window.getHeight(), Z_NEAR, Z_FAR);
-        final var cameraTransformation = Utils.getCameraTransformation(window.getCamera());
+        final var cameraTransformation = OpenGlUtils.getCameraTransformation(window.getCamera());
 
         for (final var entity : entityManager.getEntitiesWithComponent(Mesh.class)) {
 

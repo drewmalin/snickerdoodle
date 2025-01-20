@@ -6,9 +6,9 @@ import com.drewmalin.snickerdoodle.engine.utils.Vectors;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-public class Utils {
+public class OpenGlUtils {
 
-    private Utils() {
+    private OpenGlUtils() {
     }
 
 

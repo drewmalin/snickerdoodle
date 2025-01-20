@@ -11,7 +11,7 @@ import java.nio.channels.ReadableByteChannel;
 import static org.lwjgl.BufferUtils.createByteBuffer;
 import static org.lwjgl.system.MemoryUtil.memSlice;
 
-public class Utils {
+public class ShaderUtils {
 
     public static ByteBuffer resourceToByteBuffer(final String resource, final int bufferCapacity)
         throws IOException {
@@ -19,7 +19,7 @@ public class Utils {
         ByteBuffer buffer;
 
         try (
-            final InputStream source = Utils.class.getResourceAsStream(resource);
+            final InputStream source = ShaderUtils.class.getResourceAsStream(resource);
             final ReadableByteChannel rbc = Channels.newChannel(source)
         ) {
             buffer = createByteBuffer(bufferCapacity);

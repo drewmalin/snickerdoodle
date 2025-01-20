@@ -17,7 +17,6 @@ import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
  * A representation of a compiled and linked program corresponding to a vertex and fragment shader. This program may be
